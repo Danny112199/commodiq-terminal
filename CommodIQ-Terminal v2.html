@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CommodIQ Terminal</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#080c14;--panel:#0c1220;--card:#111827;--hover:#162038;--bdr:#1c2842;--bdr2:#28406a;--txt:#e8edf5;--dim:#7889a8;--mut:#4e5f7c;--grn:#00e6b4;--red:#ff4d6a;--amb:#ffb020;--blu:#3b9eff;--cyn:#00deff;--mag:#c97dff;--news:#0a1018}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:'IBM Plex Mono','Courier New',monospace;font-size:11px;overflow-x:hidden}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:var(--panel)}::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:3px}
+a{color:var(--blu);text-decoration:none}
+button{font-family:inherit;cursor:pointer;outline:none;border:1px solid var(--bdr);background:transparent;color:var(--dim);border-radius:2px;padding:3px 9px;font-size:10px;font-weight:600;transition:all .1s}
+button:hover{border-color:var(--bdr2)}
+button.on{background:rgba(0,230,180,.12);color:var(--grn);border-color:rgba(0,230,180,.4)}
+.shell{display:flex;flex-direction:column;min-height:100vh}
+.header{display:flex;align-items:center;justify-content:space-between;padding:9px 20px;border-bottom:1px solid var(--bdr);background:var(--panel)}
+.logo{font-size:16px;font-weight:800;letter-spacing:3.5px;color:var(--grn)}.logo b{color:var(--amb)}
+.hdr-r{display:flex;gap:12px;align-items:center;font-size:10px;color:var(--dim)}
+.live{color:var(--grn)}.clock{color:var(--txt);font-variant-numeric:tabular-nums;font-size:10.5px}
+/* Refresh button states */
+.rbtn{border-radius:2px;padding:4px 12px;font-size:10px;font-weight:600;cursor:pointer;transition:all .2s;position:relative}
+.rbtn.avail{background:rgba(0,230,180,.15);color:#00e6b4;border:1px solid rgba(0,230,180,.5);animation:pulse 2s ease infinite}
+.rbtn.stale{background:transparent;color:var(--mut);border:1px solid var(--bdr);cursor:default}
+.rbtn .badge{position:absolute;top:-5px;right:-5px;background:#ff4d6a;color:#fff;font-size:8px;font-weight:700;padding:1px 5px;border-radius:8px;line-height:1.3}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(0,230,180,.3)}50%{box-shadow:0 0 8px 2px rgba(0,230,180,.15)}}
+/* Report panel */
+.rpanel{position:absolute;top:100%;right:0;margin-top:6px;background:var(--card);border:1px solid var(--bdr);border-radius:3px;padding:10px 14px;width:380px;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.rpanel-title{font-size:10px;color:var(--dim);letter-spacing:1px;margin-bottom:8px;font-weight:600}
+.ritem{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(28,40,66,.3);font-size:10px}
+.ritem:last-child{border-bottom:none}
+.ritem .rlabel{color:var(--txt)}.ritem .rstatus{font-weight:600;font-size:9px;letter-spacing:.3px}
+.ritem a{color:var(--blu);font-size:9px;margin-left:8px}
+.rnew{color:var(--grn)}.rold{color:var(--mut)}
+.rnext{font-size:9px;color:var(--mut);margin-top:8px;padding-top:6px;border-top:1px solid var(--bdr)}
+/* Ticker */
+.ticker{background:var(--news);border-bottom:1px solid var(--bdr);overflow:hidden;height:28px;position:relative}
+.ticker-track{display:flex;position:absolute;top:0;height:28px;align-items:center;white-space:nowrap;animation:scroll 140s linear infinite}
+@keyframes scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+.ticker a{display:inline-flex;align-items:center;gap:8px;padding:0 20px;height:28px;font-size:10.5px;border-right:1px solid rgba(28,40,66,.3);text-decoration:none}
+.ticker .td{color:var(--amb);font-weight:700;font-size:9px}.ticker .ts{color:var(--mut);font-size:9px}.ticker .tt{color:var(--txt);font-weight:500}.ticker .tl{color:var(--blu);font-size:9px}
+/* KPI */
+.kpi-strip{display:flex;gap:5px;padding:8px 18px 5px;overflow-x:auto}
+.kpi{background:var(--card);border:1px solid var(--bdr);border-radius:2px;padding:7px 10px;cursor:pointer;min-width:130px;position:relative;overflow:hidden;transition:all .12s;flex:0 0 auto}
+.kpi.sel{background:var(--hover)}.kpi .bar{position:absolute;top:0;left:0;right:0;height:2px}
+.kpi-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+.kpi-sym{font-size:9.5px;font-weight:700;letter-spacing:1.2px}.kpi-unit{font-size:8px;color:var(--mut)}
+.kpi-price{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+.kpi-chg{display:flex;gap:6px;margin-top:3px;font-size:9.5px}.kpi-sep{color:var(--mut)}
+.kpi-trend{font-size:12px;margin-left:auto}
+/* Layout */
+.controls{display:flex;justify-content:space-between;align-items:center;padding:3px 18px 5px;flex-wrap:wrap;gap:6px}
+.ctrl-l{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.btn-grp{display:flex;gap:2px}
+.keys-hint{font-size:8px;color:var(--mut)}
+.main{display:flex;gap:8px;padding:0 18px 8px}
+.chart-col{flex:1;display:flex;flex-direction:column;gap:6px;min-width:0}
+.chart-title{padding:0 3px;font-size:11px;font-weight:600}
+.chart-box{background:var(--card);border:1px solid var(--bdr);border-radius:2px;position:relative;overflow:hidden;height:340px}
+.vol-box{background:var(--card);border:1px solid var(--bdr);border-radius:2px;height:80px;position:relative;overflow:hidden}
+.vol-label{position:absolute;top:6px;left:12px;font-size:8px;color:var(--dim);letter-spacing:1px;z-index:1}
+.chart-box canvas,.vol-box canvas{display:block;position:absolute;top:0;left:0;width:100%;height:100%}
+.mini-chart{overflow:hidden;position:relative;height:130px}.mini-chart canvas{display:block;position:absolute;top:0;left:0;width:100%;height:100%}
+.side{width:195px;display:flex;flex-direction:column;gap:6px}
+.detail{background:var(--card);border:1px solid var(--bdr);border-radius:2px;padding:9px 12px;font-size:10px;line-height:1.75}
+.det-sym{font-size:10.5px;font-weight:700;margin-bottom:3px;letter-spacing:1.5px}
+.det-src{font-size:7.5px;color:var(--mut);margin-bottom:6px}
+.det-row{display:flex;justify-content:space-between}.det-lbl{color:var(--mut)}.det-val{font-variant-numeric:tabular-nums}
+.tbl-wrap{padding:0 18px 8px}
+.tbl-box{background:var(--card);border:1px solid var(--bdr);border-radius:2px;padding:10px;overflow-x:auto}
+.tbl-title{font-size:10px;color:var(--dim);margin-bottom:6px;letter-spacing:1.5px;font-weight:600}
+table{width:100%;border-collapse:collapse}
+th{padding:3px 5px;text-align:right;color:var(--mut);font-weight:500;font-size:8px;border-bottom:1px solid var(--bdr)}
+th:first-child{text-align:left}
+td{padding:3px 5px;text-align:right;font-variant-numeric:tabular-nums;border-bottom:1px solid rgba(28,40,66,.1);font-size:10px}
+td:first-child{text-align:left;font-weight:700}
+.footer{display:flex;justify-content:space-between;align-items:center;padding:4px 18px;border-top:1px solid var(--bdr);background:var(--panel);font-size:8.5px;color:var(--mut)}
+.matrix{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.mini-hdr{font-size:9px;font-weight:700;letter-spacing:1.5px;padding:3px 7px;background:var(--card);display:flex;justify-content:space-between;border-top:2px solid}
+.up{color:var(--grn)}.dn{color:var(--red)}.flat{color:var(--dim)}
+/* Help overlay */
+.help-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(4,8,16,.94);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px}
+.help-box{background:var(--panel);border:1px solid var(--bdr2);border-radius:3px;width:100%;max-width:920px;max-height:calc(100vh - 40px);display:flex;flex-direction:column}
+.help-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--bdr);flex-shrink:0}
+.help-title{font-size:12px;font-weight:800;letter-spacing:2px;color:var(--grn)}
+.help-sub{font-size:8.5px;color:var(--mut);letter-spacing:1.5px;margin-left:14px}
+.help-close{font-size:11px;font-weight:700;color:var(--dim);cursor:pointer;background:transparent;border:1px solid var(--bdr);border-radius:2px;padding:3px 11px;font-family:inherit;transition:all .1s}
+.help-close:hover{color:var(--txt);border-color:var(--bdr2);background:var(--hover)}
+.help-body{padding:22px 24px;overflow-y:auto;flex:1}
+.help-section{margin-bottom:28px}
+.help-section:last-child{margin-bottom:8px}
+.help-stitle{font-size:8px;font-weight:700;letter-spacing:2.5px;color:var(--amb);margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--bdr)}
+.help-grid{width:100%;border-collapse:collapse;margin-bottom:8px}
+.help-grid th{padding:4px 8px;text-align:left;color:var(--mut);font-size:8px;font-weight:600;letter-spacing:.5px;border-bottom:1px solid var(--bdr)}
+.help-grid td{padding:5px 8px;font-size:10px;border-bottom:1px solid rgba(28,40,66,.2);vertical-align:top;line-height:1.55}
+.help-grid tr:last-child td{border-bottom:none}
+.help-note{font-size:9.5px;color:var(--dim);line-height:1.8;margin-top:8px}
+.help-sub-label{font-size:8.5px;color:var(--mut);letter-spacing:1px;margin:14px 0 6px;font-weight:600}
+.help-cols{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.help-kv{display:flex;gap:8px;flex-wrap:wrap}
+.help-key{background:var(--card);border:1px solid var(--bdr);border-radius:2px;padding:5px 12px;display:flex;gap:12px;align-items:center;min-width:170px}
+.help-key .hk{color:var(--grn);font-weight:700;font-size:10px;min-width:40px}
+.help-key .hv{color:var(--dim);font-size:9.5px}
+.help-warn{color:#ff4d6a;font-size:9px;font-weight:600}
+.help-hbtn{font-size:11px;font-weight:700;padding:2px 9px;cursor:pointer;transition:all .1s}
+</style>
+</head>
+<body>
+<div class="shell" id="app"></div>
+<script>
+// ═══════════════════════════════════════════════════════════════
+// COMMODIQ TERMINAL v5.0 — 9 COMMODITIES + USDA SCHEDULE REFRESH
+// ═══════════════════════════════════════════════════════════════
+
+var NEWS=[
+{t:"Cattle Futures Surge $3+ on Strong Beef Cutout; Choice at $395.49",d:"Apr 1",s:"CME/USDA",u:"https://www.ams.usda.gov/mnreports/lsddcbs.pdf"},
+{t:"U.S. Cattle Inventory Hits 75-Year Low at 86.2M Head",d:"Mar 28",s:"USDA NASS",u:"https://www.fb.org/market-intel/smaller-cattle-herd-creates-market-volatility"},
+{t:"USDA ERS: Beef & Veal Prices to Rise 10.1% in 2026",d:"Mar 25",s:"USDA ERS",u:"https://www.ers.usda.gov/topics/animal-products/cattle-beef/market-outlook"},
+{t:"Broiler Breast B/S at 145\u00a2/lb (+17\u00a2 MoM)",d:"Mar 2",s:"USDA AMS",u:"https://www.ams.usda.gov/mnreports/ams_3649.pdf"},
+{t:"Fresh 90CL Trim $444/cwt; 85CL at $394 \u2014 Weekly Processing Beef",d:"Mar 21",s:"USDA AMS",u:"https://www.ams.usda.gov/mnreports/ams_2462.pdf"},
+{t:"Fresh Vegetable Prices +2.8% MoM, +5.4% YoY in Feb",d:"Mar 25",s:"USDA ERS",u:"https://www.ers.usda.gov/data-products/food-price-outlook/summary-findings"},
+{t:"Idaho Russet Norkotah Steady at $8.91/cwt",d:"Mar 11",s:"USDA/MIPG",u:"https://www.mipotatoindustry.com/news/market-report-march-11-2026"},
+{t:"81CL Trim at $405/cwt on Light Test \u2014 Processing Beef Rpt",d:"Mar 21",s:"USDA AMS",u:"https://www.ams.usda.gov/mnreports/ams_2462.pdf"},
+{t:"Weekly Cattle Slaughter 520K, Down 89K YoY",d:"Mar 28",s:"USDA AMS",u:"https://www.ams.usda.gov/mnreports/lswnfss.pdf"},
+{t:"USDA: All Food +3.6% in 2026; Beef +10.1%",d:"Mar 25",s:"USDA ERS",u:"https://www.ers.usda.gov/data-products/food-price-outlook/summary-findings"},
+{t:"Green Beans $90-92/bu FL Handpicked at NY Terminal",d:"Mar 26",s:"USDA AMS",u:"https://www.ams.usda.gov/mnreports/nx_fv020.pdf"},
+{t:"65CL Trim Unevenly Steady; 85CL Moderately Higher",d:"Mar 27",s:"USDA AMS",u:"https://www.ams.usda.gov/mnreports/ams_2451.pdf"},
+];
+
+// ═══ 9 COMMODITIES (4 beef trims + 2 chicken + 1 offal gizzard + potato + green bean) ═══
+var COMS=[
+{k:"BT50",nm:"Beef Trim 50CL",un:"$/cwt",cl:"#ff4d6a",sy:"BT50",sr:"USDA AMS LM_XB403",hp:[193.09,168.5,3.8,8,2,42],rpt:"daily_cattle"},
+{k:"BT65",nm:"Beef Trim 65CL",un:"$/cwt",cl:"#ff6b81",sy:"BT65",sr:"USDA AMS LM_XB462",hp:[258.00,225.0,4.2,10,2,55],rpt:"weekly_trim"},
+{k:"BT81",nm:"Beef Trim 81CL",un:"$/cwt",cl:"#e84363",sy:"BT81",sr:"USDA AMS LM_XB462",hp:[405.09,352.0,5.5,12,2,71],rpt:"weekly_trim"},
+{k:"BT90",nm:"Beef Trim 90CL",un:"$/cwt",cl:"#d63051",sy:"BT90",sr:"USDA AMS LM_XB462",hp:[444.10,388.0,6.0,14,2,89],rpt:"weekly_trim"},
+{k:"CB",nm:"Chicken Breast B/S",un:"\u00a2/lb",cl:"#00e6b4",sy:"CKBR",sr:"USDA AMS PY_KA210",hp:[145.13,128,2.8,5,4,137],rpt:"weekly_chicken"},
+{k:"CL",nm:"Chicken Liver",un:"\u00a2/lb",cl:"#ffb020",sy:"CKLV",sr:"USDA AMS Misc Poultry",hp:[30.5,27.2,1.2,2,6,271],rpt:"weekly_poultry"},
+{k:"CG",nm:"Chicken Gizzard",un:"\u00a2/lb",cl:"#c97dff",sy:"CKGZ",sr:"USDA AMS Misc Poultry",hp:[45.8,41.5,1.0,1.5,5,389],rpt:"weekly_poultry"},
+{k:"PT",nm:"Russet Potatoes #1",un:"$/cwt",cl:"#3b9eff",sy:"PTRS",sr:"USDA AMS / NASS",hp:[8.91,10.45,0.35,1.2,0,503],rpt:"daily_potato"},
+{k:"GB",nm:"Snap Green Beans",un:"$/bu",cl:"#00deff",sy:"GNSB",sr:"USDA AMS Terminal",hp:[72,58,4.5,12,3,619],rpt:"daily_veggie"},
+];
+var KEYS=COMS.map(function(_,i){return i;});
+var TRS={"1M":30,"3M":90,"6M":180,"1Y":365,"ALL":730};
+
+// ═══ USDA REPORT SCHEDULE (all times ET) ═══
+var REPORTS={
+  daily_cattle:{name:"Daily Cattle & Beef Summary",freq:"Daily (M-F)",hour:15,days:[1,2,3,4,5],url:"https://www.ams.usda.gov/mnreports/lsddcbs.pdf"},
+  weekly_trim:{name:"Wkly Boneless Processing Beef & Trimmings",freq:"Weekly (Fri)",hour:15,days:[5],url:"https://www.ams.usda.gov/mnreports/ams_2462.pdf"},
+  weekly_chicken:{name:"Weekly National Chicken Report",freq:"Weekly (Fri)",hour:14,days:[5],url:"https://www.ams.usda.gov/mnreports/ams_3646.pdf"},
+  weekly_poultry:{name:"Misc Poultry Report (Liver/Gizzard)",freq:"Weekly (Fri)",hour:14,days:[5],url:"https://www.ams.usda.gov/mnreports/ams_3645.pdf"},
+  daily_potato:{name:"National Potato & Onion Report",freq:"Daily (M-F)",hour:17,days:[1,2,3,4,5],url:"https://www.ams.usda.gov/mnreports/fvdidnop.pdf"},
+  daily_veggie:{name:"Terminal Market Vegetable Prices",freq:"Daily (M-F)",hour:12,days:[1,2,3,4,5],url:"https://www.ams.usda.gov/mnreports/nx_fv020.pdf"},
+};
+
+function getReportStatus(){
+  var now=new Date();
+  var etOffset=(now.getUTCMonth()>=3&&now.getUTCMonth()<=10)?-4:-5;// EDT Apr-Oct, EST Nov-Mar
+  var utcH=now.getUTCHours();
+  var etH=utcH+etOffset;if(etH<0)etH+=24;
+  var dow=now.getUTCDay();// 0=Sun
+  var lastCheck=state.lastCheck||0;
+  var results=[];var newCount=0;
+  var seen={};// dedupe reports
+  COMS.forEach(function(c){
+    var rk=c.rpt;if(seen[rk])return;seen[rk]=true;
+    var rpt=REPORTS[rk];if(!rpt)return;
+    var isReportDay=rpt.days.indexOf(dow)>=0;
+    var pastTime=etH>=rpt.hour;
+    var available=isReportDay&&pastTime;
+    var isNew=available&&(now.getTime()-lastCheck>3600000);// new if >1hr since last check
+    if(isNew)newCount++;
+    results.push({key:rk,name:rpt.name,freq:rpt.freq,url:rpt.url,available:available,isNew:isNew});
+  });
+  // Find next report time
+  var nextStr="";
+  var dayNames=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  var earliest=null;
+  Object.keys(REPORTS).forEach(function(rk){
+    var rpt=REPORTS[rk];
+    for(var d=0;d<7;d++){
+      var checkDay=(dow+d)%7;
+      if(rpt.days.indexOf(checkDay)>=0){
+        var h=rpt.hour;
+        if(d===0&&etH>=h)continue;// already past today
+        if(!earliest||d<earliest.d||(d===earliest.d&&h<earliest.h))earliest={d:d,h:h,day:dayNames[checkDay]};
+        break;
+      }
+    }
+  });
+  if(earliest)nextStr=earliest.day+" "+earliest.h+":00 ET";
+  return{reports:results,newCount:newCount,next:nextStr};
+}
+
+var state={sel:0,tr:"6M",view:"SINGLE",fc:true,data:{},metrics:{},forecasts:{},lastCheck:0,showPanel:false,showHelp:false};
+
+// ═══ DATA ═══
+function mkR(s){return function(){s=(s*16807)%2147483647;return(s-1)/2147483646;};}
+function buildSeries(hp){
+  var now=hp[0],ago=hp[1],vol=hp[2],sA=hp[3],sP=hp[4],seed=hp[5],days=730;
+  var r=mkR(seed),data=[],p=ago,dr=(now-ago)/days,td=new Date("2026-04-02");
+  for(var i=days;i>=0;i--){var d=new Date(td);d.setDate(d.getDate()-i);
+    var se=Math.sin(((d.getMonth()+sP)/12)*Math.PI*2)*sA;
+    p=Math.max(ago*0.55,Math.min(now*1.6,p+dr+(r()-0.5)*2*vol+se*0.018));
+    data.push({date:d.toISOString().split("T")[0],price:Math.round(p*100)/100,vol:Math.floor(r()*35000+8000)});}
+  data[data.length-1].price=now;return data;
+}
+function calcM(data){
+  if(!data||data.length<2)return null;
+  var L=data[data.length-1].price,P=data[data.length-2].price;
+  var w=data[Math.max(0,data.length-6)].price,m=data[Math.max(0,data.length-5)].price,y=data[Math.max(0,data.length-53)].price;
+  function avg(a){var s=0;for(var i=0;i<a.length;i++)s+=a[i];return s/a.length;}
+  var s7=[],s30=[],s90=[];
+  for(var i=Math.max(0,data.length-7);i<data.length;i++)s7.push(data[i].price);
+  for(var i=Math.max(0,data.length-30);i<data.length;i++)s30.push(data[i].price);
+  for(var i=Math.max(0,data.length-90);i<data.length;i++)s90.push(data[i].price);
+  var rets=[];for(var i=1;i<Math.min(30,data.length);i++)rets.push(Math.log(data[data.length-i].price/data[data.length-i-1].price));
+  var mr=avg(rets),va=0;for(var i=0;i<rets.length;i++)va+=(rets[i]-mr)*(rets[i]-mr);va/=rets.length;
+  var vol=Math.sqrt(va*52)*100;
+  var yr=data.slice(-365),h52=-1e9,l52=1e9;for(var i=0;i<yr.length;i++){if(yr[i].price>h52)h52=yr[i].price;if(yr[i].price<l52)l52=yr[i].price;}
+  var wow=((L-w)/w)*100,tr="\u2192";if(wow>0.8)tr="\u2191";else if(wow<-0.8)tr="\u2193";
+  return{latest:L,wow:wow,mom:((L-m)/m)*100,yoy:((L-y)/y)*100,daily:((L-P)/P)*100,trend:tr,a7:avg(s7),a30:avg(s30),a90:avg(s90),vol:vol,h52:h52,l52:l52};
+}
+function doFc(data){
+  if(!data||data.length<8)return[];
+  var pr=[];for(var i=Math.max(0,data.length-52);i<data.length;i++)pr.push(data[i].price);
+  var n=pr.length,al=0.3,be=0.1,lv=pr[0],tr=(pr[Math.min(3,n-1)]-pr[0])/Math.min(3,n-1);
+  for(var i=1;i<n;i++){var pl=lv;lv=al*pr[i]+(1-al)*(lv+tr);tr=be*(lv-pl)+(1-be)*tr;}
+  var sse=0,l2=pr[0],t2=tr;
+  for(var i=1;i<n;i++){sse+=(pr[i]-(l2+t2))*(pr[i]-(l2+t2));var pl2=l2;l2=al*pr[i]+(1-al)*(l2+t2);t2=be*(l2-pl2)+(1-be)*t2;}
+  var sig=Math.sqrt(sse/Math.max(1,n-2)),last=new Date(data[data.length-1].date),fc=[];
+  for(var i=1;i<=12;i++){var d=new Date(last);d.setDate(d.getDate()+i*7);var p=lv+tr*i,ci=1.96*sig*Math.sqrt(i);
+    fc.push({date:d.toISOString().split("T")[0],price:+(p.toFixed(2)),upper:+((p+ci).toFixed(2)),lower:+(Math.max(0,p-ci).toFixed(2))});}
+  return fc;
+}
+function fmt(v,d){return v!=null&&!isNaN(v)?v.toFixed(d!=null?d:2):"\u2014";}
+function fP(v){return v!=null&&!isNaN(v)?(v>=0?"+":"")+v.toFixed(2)+"%":"\u2014";}
+function pcCl(v){return v>0.1?"#00e6b4":v<-0.1?"#ff4d6a":"#7889a8";}
+function tCl(t){return t==="\u2191"?"#00e6b4":t==="\u2193"?"#ff4d6a":"#7889a8";}
+
+// ═══ CANVAS ═══
+function sizeCanvas(cv){var p=cv.parentElement,w=p.clientWidth,h=p.clientHeight,dpr=window.devicePixelRatio||1;cv.style.width=w+"px";cv.style.height=h+"px";cv.width=w*dpr;cv.height=h*dpr;}
+
+function drawChart(canvas,series,color,opts){
+  opts=opts||{};var ctx=canvas.getContext("2d"),dpr=window.devicePixelRatio||1,w=canvas.width/dpr,h=canvas.height/dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+  if(!series||series.length<2)return;
+  var pad={t:10,r:10,b:25,l:55},cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
+  var prices=series.map(function(d){return d.price;});
+  var mn=Math.min.apply(null,prices),mx=Math.max.apply(null,prices);
+  if(opts.fcData&&opts.fcData.length){for(var i=0;i<opts.fcData.length;i++){mn=Math.min(mn,opts.fcData[i].lower);mx=Math.max(mx,opts.fcData[i].upper);}}
+  var range=mx-mn||1;mn-=range*0.05;mx+=range*0.05;range=mx-mn;
+  function xP(i,t){return pad.l+(i/(t-1))*cw;}function yP(v){return pad.t+(1-(v-mn)/range)*ch;}
+  var total=series.length+(opts.fcData?opts.fcData.length:0);
+  ctx.strokeStyle="#1c2842";ctx.lineWidth=0.5;
+  for(var i=0;i<5;i++){var gy=pad.t+(ch/4)*i;ctx.beginPath();ctx.moveTo(pad.l,gy);ctx.lineTo(w-pad.r,gy);ctx.stroke();ctx.fillStyle="#4e5f7c";ctx.font="9px 'IBM Plex Mono',monospace";ctx.textAlign="right";ctx.fillText(fmt(mx-(range/4)*i),pad.l-6,gy+3);}
+  ctx.fillStyle="#4e5f7c";ctx.font="9px 'IBM Plex Mono',monospace";ctx.textAlign="center";
+  var step=Math.max(1,Math.floor(total/6));for(var i=0;i<series.length;i+=step){var d=new Date(series[i].date);ctx.fillText(d.toLocaleDateString("en-US",{month:"short",day:"numeric"}),xP(i,total),h-pad.b+15);}
+  if(opts.fcData&&opts.fcData.length){var fs=series.length;ctx.fillStyle="rgba(0,222,255,0.07)";ctx.beginPath();ctx.moveTo(xP(fs,total),yP(opts.fcData[0].upper));for(var i=0;i<opts.fcData.length;i++)ctx.lineTo(xP(fs+i,total),yP(opts.fcData[i].upper));for(var i=opts.fcData.length-1;i>=0;i--)ctx.lineTo(xP(fs+i,total),yP(opts.fcData[i].lower));ctx.closePath();ctx.fill();ctx.strokeStyle="#00deff";ctx.lineWidth=1.5;ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(xP(fs-1,total),yP(series[series.length-1].price));for(var i=0;i<opts.fcData.length;i++)ctx.lineTo(xP(fs+i,total),yP(opts.fcData[i].price));ctx.stroke();ctx.setLineDash([]);}
+  var grad=ctx.createLinearGradient(0,pad.t,0,h-pad.b);grad.addColorStop(0,color+"33");grad.addColorStop(1,color+"03");ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(xP(0,total),yP(prices[0]));for(var i=1;i<prices.length;i++)ctx.lineTo(xP(i,total),yP(prices[i]));ctx.lineTo(xP(prices.length-1,total),h-pad.b);ctx.lineTo(xP(0,total),h-pad.b);ctx.closePath();ctx.fill();
+  ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(xP(0,total),yP(prices[0]));for(var i=1;i<prices.length;i++)ctx.lineTo(xP(i,total),yP(prices[i]));ctx.stroke();
+  if(opts.hoverX!=null){var idx=Math.round((opts.hoverX-pad.l)/cw*(total-1));if(idx>=0&&idx<series.length){var px=xP(idx,total),py=yP(series[idx].price);ctx.strokeStyle="#28406a";ctx.lineWidth=0.5;ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(px,pad.t);ctx.lineTo(px,h-pad.b);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=color;ctx.beginPath();ctx.arc(px,py,3.5,0,Math.PI*2);ctx.fill();ctx.fillStyle="#e8edf5";ctx.font="bold 10px 'IBM Plex Mono',monospace";ctx.textAlign="left";ctx.fillText(fmt(series[idx].price)+" | "+series[idx].date,px+8,py-6);}}
+}
+function drawVol(cv,series,color){
+  var ctx=cv.getContext("2d"),dpr=window.devicePixelRatio||1,w=cv.width/dpr,h=cv.height/dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);if(!series||!series.length)return;
+  var pad={t:18,r:10,b:4,l:40},cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
+  var mx=0;for(var i=0;i<series.length;i++)if(series[i].vol>mx)mx=series[i].vol;
+  if(!mx)return;
+  var bw=Math.max(1,cw/series.length-0.5);ctx.fillStyle=color+"40";
+  for(var i=0;i<series.length;i++){var bh=(series[i].vol/mx)*ch;ctx.fillRect(pad.l+i*(cw/series.length),h-pad.b-bh,bw,bh);}
+}
+function drawMini(cv,series,color){
+  var ctx=cv.getContext("2d"),dpr=window.devicePixelRatio||1,w=cv.width/dpr,h=cv.height/dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);if(!series||series.length<2)return;
+  var pr=series.map(function(d){return d.price;}),mn=Math.min.apply(null,pr),mx=Math.max.apply(null,pr),rng=mx-mn||1;mn-=rng*0.05;mx+=rng*0.05;rng=mx-mn;var p=6;
+  var grad=ctx.createLinearGradient(0,p,0,h-p);grad.addColorStop(0,color+"40");grad.addColorStop(1,color+"05");ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(p,p+(1-(pr[0]-mn)/rng)*(h-2*p));for(var i=1;i<pr.length;i++)ctx.lineTo(p+i/(pr.length-1)*(w-2*p),p+(1-(pr[i]-mn)/rng)*(h-2*p));ctx.lineTo(w-p,h-p);ctx.lineTo(p,h-p);ctx.closePath();ctx.fill();ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(p,p+(1-(pr[0]-mn)/rng)*(h-2*p));for(var i=1;i<pr.length;i++)ctx.lineTo(p+i/(pr.length-1)*(w-2*p),p+(1-(pr[i]-mn)/rng)*(h-2*p));ctx.stroke();
+}
+
+function drawOverlay(canvas,seriesArr,colors,labels,opts){
+  opts=opts||{};var ctx=canvas.getContext("2d"),dpr=window.devicePixelRatio||1,w=canvas.width/dpr,h=canvas.height/dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+  if(!seriesArr||!seriesArr.length)return;
+  var pad={t:16,r:90,b:25,l:55},cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
+  var normArr=seriesArr.map(function(ser){
+    if(!ser||ser.length<2)return[];
+    var base=ser[0].price||1;
+    return ser.map(function(d){return{date:d.date,pct:((d.price-base)/base)*100};});
+  });
+  var mn=0,mx=0;
+  normArr.forEach(function(norm){norm.forEach(function(d){if(d.pct<mn)mn=d.pct;if(d.pct>mx)mx=d.pct;});});
+  var range=(mx-mn)||1;mn-=range*0.08;mx+=range*0.08;range=mx-mn;
+  var total=seriesArr[0]?seriesArr[0].length:1;
+  function xP(i){return pad.l+(i/Math.max(1,total-1))*cw;}
+  function yP(v){return pad.t+(1-(v-mn)/range)*ch;}
+  ctx.strokeStyle="#1c2842";ctx.lineWidth=0.5;
+  for(var g=0;g<5;g++){var gv=mn+(range/4)*g,gy=yP(gv);ctx.beginPath();ctx.moveTo(pad.l,gy);ctx.lineTo(w-pad.r,gy);ctx.stroke();ctx.fillStyle="#4e5f7c";ctx.font="9px 'IBM Plex Mono',monospace";ctx.textAlign="right";ctx.fillText((gv>=0?"+":"")+gv.toFixed(1)+"%",pad.l-5,gy+3);}
+  if(mn<0&&mx>0){var zy=yP(0);ctx.strokeStyle="#3a4f70";ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(pad.l,zy);ctx.lineTo(w-pad.r,zy);ctx.stroke();ctx.setLineDash([]);}
+  ctx.fillStyle="#4e5f7c";ctx.font="9px 'IBM Plex Mono',monospace";ctx.textAlign="center";
+  var step=Math.max(1,Math.floor(total/6));var bs=seriesArr[0]||[];
+  for(var i=0;i<bs.length;i+=step){var dl=new Date(bs[i].date);ctx.fillText(dl.toLocaleDateString("en-US",{month:"short",day:"numeric"}),xP(i),h-pad.b+15);}
+  normArr.forEach(function(norm,ci){
+    if(!norm||norm.length<2)return;
+    var col=colors[ci];
+    ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.globalAlpha=0.85;
+    ctx.beginPath();ctx.moveTo(xP(0),yP(norm[0].pct));
+    for(var i=1;i<norm.length;i++)ctx.lineTo(xP(i),yP(norm[i].pct));
+    ctx.stroke();
+    var lv=norm[norm.length-1].pct;
+    ctx.globalAlpha=1;ctx.fillStyle=col;ctx.font="bold 8px 'IBM Plex Mono',monospace";ctx.textAlign="left";
+    ctx.fillText(labels[ci],xP(norm.length-1)+5,yP(lv)+3);
+  });
+  ctx.globalAlpha=1;
+  if(opts.hoverX!=null){var hIdx=Math.round((opts.hoverX-pad.l)/cw*(total-1));if(hIdx>=0&&hIdx<total){ctx.strokeStyle="#28406a";ctx.lineWidth=0.5;ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(xP(hIdx),pad.t);ctx.lineTo(xP(hIdx),h-pad.b);ctx.stroke();ctx.setLineDash([]);normArr.forEach(function(norm,ci){if(!norm||hIdx>=norm.length)return;ctx.fillStyle=colors[ci];ctx.beginPath();ctx.arc(xP(hIdx),yP(norm[hIdx].pct),3,0,Math.PI*2);ctx.fill();});}}
+}
+
+// ═══ INIT ═══
+COMS.forEach(function(c,i){state.data[i]=buildSeries(c.hp);state.metrics[i]=calcM(state.data[i]);state.forecasts[i]=doFc(state.data[i]);});
+
+// ═══ RENDER ═══
+function render(){
+  var s=state,cm=COMS[s.sel],m=s.metrics[s.sel],days=TRS[s.tr],rs=getReportStatus();
+  var html='';
+
+  // Header
+  html+='<div class="header"><div style="display:flex;align-items:center;gap:14px"><div class="logo">\u25C6 COMMOD<b>IQ</b></div><div style="font-size:9px;color:var(--mut);letter-spacing:1.5px">COMMODITY INTELLIGENCE TERMINAL</div></div>';
+  html+='<div class="hdr-r"><span>USDA AMS \u00b7 ERS \u00b7 BLS</span>';
+  // Smart refresh button
+  html+='<div style="position:relative;display:inline-block">';
+  if(rs.newCount>0){
+    html+='<button class="rbtn avail" onclick="togglePanel()">'+rs.newCount+' NEW REPORT'+(rs.newCount>1?'S':'')+' \u2197<span class="badge">'+rs.newCount+'</span></button>';
+  }else{
+    html+='<button class="rbtn stale" onclick="togglePanel()">UP TO DATE \u00b7 NEXT: '+rs.next+'</button>';
+  }
+  if(s.showPanel){
+    html+='<div class="rpanel"><div class="rpanel-title">USDA REPORT STATUS</div>';
+    rs.reports.forEach(function(r){
+      html+='<div class="ritem"><span class="rlabel">'+r.name+'</span><span>';
+      if(r.isNew)html+='<span class="rstatus rnew">\u25CF NEW</span>';
+      else if(r.available)html+='<span class="rstatus" style="color:var(--dim)">\u25CB SEEN</span>';
+      else html+='<span class="rstatus rold">\u2014 PENDING</span>';
+      html+='<a href="'+r.url+'" target="_blank" onclick="markChecked(event)">\u2197 View PDF</a></span></div>';
+    });
+    html+='<div class="rnext">Next release: '+rs.next+' \u00b7 <span style="color:var(--dim)">'+rs.reports[0].freq+'</span></div></div>';
+  }
+  html+='</div>';
+  html+='<button class="help-hbtn" onclick="toggleHelp()" style="border:1px solid '+(s.showHelp?'rgba(0,230,180,.4)':'var(--bdr)')+';color:'+(s.showHelp?'var(--grn)':'var(--dim)')+(s.showHelp?';background:rgba(0,230,180,.08)':'')+'" title="Open guide (press ?)">?</button>';
+  html+='<span class="live">\u25CF LIVE</span><span class="clock" id="clock"></span></div></div>';
+
+  // Ticker
+  html+='<div class="ticker"><div class="ticker-track">';NEWS.concat(NEWS).forEach(function(n){html+='<a href="'+n.u+'" target="_blank"><span class="td">'+n.d+'</span><span class="ts">'+n.s+'</span><span class="tt">'+n.t+'</span><span class="tl">\u2197</span></a>';});html+='</div></div>';
+
+  // KPI strip
+  html+='<div class="kpi-strip">';
+  COMS.forEach(function(c,i){var mk=s.metrics[i];if(!mk)return;
+    html+='<div class="kpi'+(s.sel===i&&s.view==="SINGLE"?' sel':'')+'" onclick="pick('+i+')" style="border-color:'+(s.sel===i&&s.view==="SINGLE"?c.cl:'var(--bdr)')+'">';
+    if(s.sel===i&&s.view==="SINGLE")html+='<div class="bar" style="background:'+c.cl+'"></div>';
+    html+='<div class="kpi-top"><span class="kpi-sym" style="color:'+c.cl+'">'+c.sy+'</span><span class="kpi-unit">'+c.un+'</span></div>';
+    html+='<div class="kpi-price">'+fmt(mk.latest,2)+'</div>';
+    html+='<div class="kpi-chg"><span style="color:'+pcCl(mk.daily)+'">'+fP(mk.daily)+'</span><span class="kpi-sep">\u2502</span><span style="color:'+pcCl(mk.wow)+'">W'+fP(mk.wow)+'</span><span class="kpi-trend" style="color:'+tCl(mk.trend)+'">'+mk.trend+'</span></div></div>';
+  });html+='</div>';
+
+  // Controls
+  html+='<div class="controls"><div class="ctrl-l"><div class="btn-grp">';
+  Object.keys(TRS).forEach(function(r){html+='<button class="'+(s.tr===r?"on":"")+'" onclick="setTR(\''+r+'\')">'+r+'</button>';});
+  html+='</div><div class="btn-grp">';["SINGLE","OVERLAY","MATRIX"].forEach(function(v){html+='<button class="'+(s.view===v?"on":"")+'" onclick="setView(\''+v+'\')">'+v+'</button>';});
+  html+='</div><button class="'+(s.fc?"on":"")+'" onclick="toggleFc()" style="'+(s.fc?"color:var(--cyn);border-color:rgba(0,222,255,.4);background:rgba(0,222,255,.12)":"")+'">FC '+(s.fc?"ON":"OFF")+'</button></div>';
+  html+='<div class="keys-hint">\u2191\u2193 nav \u00b7 F forecast \u00b7 O overlay \u00b7 M matrix</div></div>';
+
+  // Main
+  if(s.view==="MATRIX"){
+    html+='<div class="main"><div class="matrix">';
+    COMS.forEach(function(c,i){var mk=s.metrics[i];html+='<div onclick="pick('+i+')" style="cursor:pointer"><div class="mini-hdr" style="color:'+c.cl+';border-color:'+c.cl+'"><span>'+c.sy+'</span><span style="color:var(--txt)">'+(mk?fmt(mk.latest,2):"\u2014")+'</span><span style="color:'+pcCl(mk?mk.wow:0)+'">'+(mk?fP(mk.wow):"\u2014")+'</span></div><div class="mini-chart"><canvas id="mini'+i+'"></canvas></div></div>';});
+    html+='</div></div>';
+  } else if(s.view==="OVERLAY"){
+    html+='<div class="main"><div class="chart-col"><div class="chart-title"><span style="color:var(--dim)">OVERLAY \u2014 % CHANGE FROM PERIOD START \u00b7 '+s.tr+'</span></div>';
+    html+='<div class="chart-box" style="height:390px"><canvas id="overlayChart"></canvas></div></div>';
+    html+='<div class="side"><div class="detail"><div class="det-sym" style="color:var(--dim)">ALL MKTS</div><div class="det-src">Sorted by WoW % change</div>';
+    var ovRows=COMS.map(function(c,i){return{c:c,mk:s.metrics[i]};}).filter(function(x){return x.mk;}).sort(function(a,b){return b.mk.wow-a.mk.wow;});
+    ovRows.forEach(function(x){html+='<div class="det-row"><span class="det-lbl" style="color:'+x.c.cl+'">'+x.c.sy+'</span><span class="det-val" style="color:'+pcCl(x.mk.wow)+'">'+fP(x.mk.wow)+'</span></div>';});
+    html+='</div></div></div>';
+  } else {
+    html+='<div class="main"><div class="chart-col"><div class="chart-title"><span style="color:'+cm.cl+'">'+cm.sy+' \u2014 '+cm.nm+'<span style="color:var(--dim);font-weight:400"> \u00b7 '+cm.un+'</span>'+(s.fc?'<span style="color:var(--cyn);font-weight:400;font-size:9.5px"> + 12W FORECAST</span>':'')+'</span></div>';
+    html+='<div class="chart-box"><canvas id="mainChart"></canvas></div>';
+    if(s.view==="SINGLE")html+='<div class="vol-box"><div class="vol-label">VOLUME \u2014 '+cm.sy+'</div><canvas id="volChart"></canvas></div>';
+    html+='</div>';
+    if(m){
+      var fc=s.forecasts[s.sel],f4=fc&&fc[3],f8=fc&&fc[7],f12=fc&&fc[fc.length-1];
+      html+='<div class="side"><div class="detail"><div class="det-sym" style="color:'+cm.cl+'">'+cm.sy+' \u2014 '+cm.nm+'</div><div class="det-src">'+cm.sr+'</div>';
+      var rows=[["LAST",fmt(m.latest,2),"var(--txt)"],["D%",fP(m.daily),pcCl(m.daily)],["W%",fP(m.wow),pcCl(m.wow)],["M%",fP(m.mom),pcCl(m.mom)],["Y%",fP(m.yoy),pcCl(m.yoy)],["\u2500\u2500","\u2500\u2500","var(--bdr)"],["MA-7",fmt(m.a7,2),"var(--dim)"],["MA-30",fmt(m.a30,2),"var(--dim)"],["MA-90",fmt(m.a90,2),"var(--dim)"],["VOL",fmt(m.vol,1)+"%","var(--amb)"],["\u2500\u2500","\u2500\u2500","var(--bdr)"],["52W H",fmt(m.h52,2),"var(--grn)"],["52W L",fmt(m.l52,2),"var(--red)"]];
+      if(f4){rows.push(["\u2500\u2500","\u2500\u2500","var(--bdr)"],["\u25b8 FCST","","var(--cyn)"],["  +4W",fmt(f4.price,2),pcCl(f4.price-m.latest)]);if(f8)rows.push(["  +8W",fmt(f8.price,2),pcCl(f8.price-m.latest)]);if(f12)rows.push(["  +12W",fmt(f12.price,2),pcCl(f12.price-m.latest)]);}
+      rows.forEach(function(r){html+='<div class="det-row"><span class="det-lbl">'+r[0]+'</span><span class="det-val" style="color:'+r[2]+'">'+r[1]+'</span></div>';});
+      html+='</div></div>';
+    }
+    html+='</div>';
+  }
+
+  // Table
+  html+='<div class="tbl-wrap"><div class="tbl-box"><div class="tbl-title">MARKET OVERVIEW \u2014 9 COMMODITIES \u2014 USDA VALIDATED</div><table><thead><tr><th style="text-align:left">SYM</th><th>LAST</th><th>UNIT</th><th>D%</th><th>W%</th><th>M%</th><th>Y%</th><th>VOL</th><th>MA30</th><th>4W FC</th><th>TREND</th></tr></thead><tbody>';
+  COMS.forEach(function(c,i){var mk=s.metrics[i],f4=s.forecasts[i]&&s.forecasts[i][3];if(!mk)return;
+    html+='<tr><td style="color:'+c.cl+'">'+c.sy+'</td><td style="color:var(--txt)">'+fmt(mk.latest,2)+'</td><td style="color:var(--mut);font-size:9px">'+c.un+'</td><td style="color:'+pcCl(mk.daily)+'">'+fP(mk.daily)+'</td><td style="color:'+pcCl(mk.wow)+'">'+fP(mk.wow)+'</td><td style="color:'+pcCl(mk.mom)+'">'+fP(mk.mom)+'</td><td style="color:'+pcCl(mk.yoy)+'">'+fP(mk.yoy)+'</td><td style="color:var(--amb)">'+fmt(mk.vol,1)+'%</td><td style="color:var(--dim)">'+fmt(mk.a30,2)+'</td><td style="color:'+(f4?pcCl(f4.price-mk.latest):"var(--dim)")+'">'+(f4?fmt(f4.price,2):"\u2014")+'</td><td style="font-size:13px;color:'+tCl(mk.trend)+'">'+mk.trend+'</td></tr>';
+  });html+='</tbody></table></div></div>';
+
+  html+='<div class="footer"><span>DATA: USDA AMS Market News \u00b7 ERS Meat Price Spreads \u00b7 BLS CPI \u00b7 NASS</span><span>FORECAST: Holt-Winters 12W \u00b7 v5.0 \u00b7 \u00a9 2026 COMMODIQ</span></div>';
+
+  // ═══ HELP MODAL ═══
+  if(s.showHelp){
+    html+='<div class="help-overlay" onclick="if(event.target===this)toggleHelp()">';
+    html+='<div class="help-box">';
+    html+='<div class="help-hdr"><div style="display:flex;align-items:baseline;gap:0"><span class="help-title">\u25C6 COMMODIQ GUIDE</span><span class="help-sub">REFERENCE MANUAL \u00b7 PRESS ? OR ESC TO CLOSE</span></div><button class="help-close" onclick="toggleHelp()">\u00d7 CLOSE</button></div>';
+    html+='<div class="help-body">';
+
+    // ── SECTION 1: Commodity Codes & Units ──
+    html+='<div class="help-section">';
+    html+='<div class="help-stitle">01 \u2014 COMMODITY CODES &amp; UNITS</div>';
+    html+='<div class="help-sub-label">BEEF TRIMS \u2014 CL% = Chemical Lean percentage (pure lean meat by fat analysis). Higher CL = less fat = higher price. Processors blend trims to hit target lean% for ground beef products.</div>';
+    html+='<table class="help-grid"><thead><tr><th>SYMBOL</th><th>FULL NAME</th><th>LEAN %</th><th>FAT %</th><th>PRIMARY USE</th><th>UNIT</th><th>PRICE PER LB</th></tr></thead><tbody>';
+    html+='<tr><td style="color:#ff4d6a;font-weight:700">BT50</td><td>Beef Trim 50CL</td><td>50%</td><td>50%</td><td>Fat blending agent; used to bring lean grinds up to fat targets in burger patties and sausage</td><td>$/cwt</td><td>Price \u00f7 100</td></tr>';
+    html+='<tr><td style="color:#ff6b81;font-weight:700">BT65</td><td>Beef Trim 65CL</td><td>65%</td><td>35%</td><td>Ground beef blending; sausage manufacturing</td><td>$/cwt</td><td>Price \u00f7 100</td></tr>';
+    html+='<tr><td style="color:#e84363;font-weight:700">BT81</td><td>Beef Trim 81CL</td><td>81%</td><td>19%</td><td>Industry standard for 80/20 ground beef (retail packs, food service burgers)</td><td>$/cwt</td><td>Price \u00f7 100</td></tr>';
+    html+='<tr><td style="color:#d63051;font-weight:700">BT90</td><td>Beef Trim 90CL</td><td>90%</td><td>10%</td><td>Premium lean base; blended down with fattier trims to hit target lean%. Drives ground beef cost.</td><td>$/cwt</td><td>Price \u00f7 100</td></tr>';
+    html+='</tbody></table>';
+    html+='<div class="help-note">\u25b8 <b>cwt = hundredweight = 100 lbs.</b> Example: BT90 at $444/cwt = $4.44/lb \u00b7 BT50 at $193/cwt = $1.93/lb. The spread between BT50 and BT90 is the "lean premium" — it widens when lean beef is scarce.</div>';
+
+    html+='<div class="help-sub-label" style="margin-top:16px">POULTRY \u2014 B/S = Boneless/Skinless. By-products (liver, gizzard) trade at a fraction of breast price and serve separate markets.</div>';
+    html+='<table class="help-grid"><thead><tr><th>SYMBOL</th><th>FULL NAME</th><th>DESCRIPTION</th><th>UNIT</th><th>PRICE PER LB</th></tr></thead><tbody>';
+    html+='<tr><td style="color:#00e6b4;font-weight:700">CKBR</td><td>Chicken Breast B/S</td><td>Boneless, skinless breast meat. Benchmark food service and retail cut. Prices move with feed costs and production cycles (typically seasonal lows in fall).</td><td>\u00a2/lb</td><td>Price \u00f7 100</td></tr>';
+    html+='<tr><td style="color:#ffb020;font-weight:700">CKLV</td><td>Chicken Liver</td><td>Processing by-product. Traded into pet food, specialty foodservice, and export channels. Very low price relative to breast.</td><td>\u00a2/lb</td><td>Price \u00f7 100</td></tr>';
+    html+='<tr><td style="color:#c97dff;font-weight:700">CKGZ</td><td>Chicken Gizzard</td><td>Muscular stomach by-product. Domestic specialty use and strong Asian export demand. More volatile than liver.</td><td>\u00a2/lb</td><td>Price \u00f7 100</td></tr>';
+    html+='</tbody></table>';
+
+    html+='<div class="help-sub-label" style="margin-top:16px">PRODUCE</div>';
+    html+='<table class="help-grid"><thead><tr><th>SYMBOL</th><th>FULL NAME</th><th>DESCRIPTION</th><th>UNIT</th><th>PRICE PER LB</th></tr></thead><tbody>';
+    html+='<tr><td style="color:#3b9eff;font-weight:700">PTRS</td><td>Russet Potatoes #1</td><td>Grade #1 Russet Norkotah, primary Idaho and Pacific NW origin. Standard food service potato. Prices include storage premiums in spring/summer months.</td><td>$/cwt</td><td>Price \u00f7 100</td></tr>';
+    html+='<tr><td style="color:#00deff;font-weight:700">GNSB</td><td>Snap Green Beans</td><td>Fresh-market snap beans. NY terminal market price for FL and domestic origin. Highly seasonal — peaks in winter (FL production) and summer. ~30 lbs per bushel.</td><td>$/bu</td><td>Price \u00f7 30</td></tr>';
+    html+='</tbody></table>';
+    html+='</div>';
+
+    // ── SECTION 2: Metrics ──
+    html+='<div class="help-section">';
+    html+='<div class="help-stitle">02 \u2014 METRICS REFERENCE</div>';
+    html+='<div class="help-cols">';
+    html+='<div>';
+    html+='<table class="help-grid"><thead><tr><th>METRIC</th><th>WHAT IT MEANS</th></tr></thead><tbody>';
+    html+='<tr><td style="color:var(--txt);font-weight:700">LAST</td><td>Most recently reported market price</td></tr>';
+    html+='<tr><td style="color:var(--txt);font-weight:700">D%</td><td>Change vs. the prior day\u2019s price</td></tr>';
+    html+='<tr><td style="color:var(--txt);font-weight:700">W%</td><td>Change vs. 7 days ago. <b>Primary trend signal.</b> Drives the TREND arrow.</td></tr>';
+    html+='<tr><td style="color:var(--txt);font-weight:700">M%</td><td>Change vs. 30 days ago. Indicates medium-term momentum.</td></tr>';
+    html+='<tr><td style="color:var(--txt);font-weight:700">Y%</td><td>Change vs. 365 days ago. Year-over-year context for cost benchmarking.</td></tr>';
+    html+='<tr><td style="color:var(--amb);font-weight:700">VOL</td><td>Annualized price volatility (%). How unpredictable this commodity is. &lt;5% = stable \u00b7 5\u201315% = moderate risk \u00b7 &gt;15% = high risk, hedge carefully.</td></tr>';
+    html+='<tr><td style="color:var(--txt);font-weight:700">TREND</td><td style="font-size:11px">\u2191 Rising (W% &gt; +0.8%) \u00b7 \u2192 Flat \u00b7 \u2193 Falling (W% &lt; -0.8%)</td></tr>';
+    html+='</tbody></table>';
+    html+='</div>';
+    html+='<div>';
+    html+='<table class="help-grid"><thead><tr><th>METRIC</th><th>WHAT IT MEANS &amp; HOW TO USE IT</th></tr></thead><tbody>';
+    html+='<tr><td style="color:var(--dim);font-weight:700">MA-7</td><td>7-day moving average. Short-term noise-smoothed price. Compare to LAST to see if today is above/below the recent average.</td></tr>';
+    html+='<tr><td style="color:var(--dim);font-weight:700">MA-30</td><td>30-day moving average. Medium-term baseline. <b>LAST &gt; MA-30</b> = price is trending up. Useful as a contract pricing reference.</td></tr>';
+    html+='<tr><td style="color:var(--dim);font-weight:700">MA-90</td><td>90-day moving average. Long-term trend floor/ceiling. If LAST is far above MA-90, market may be stretched. Consider forward contracts.</td></tr>';
+    html+='<tr><td style="color:var(--grn);font-weight:700">52W H</td><td>Highest price in the last 52 weeks. Resistance level \u2014 if LAST approaches this, market is near its top.</td></tr>';
+    html+='<tr><td style="color:var(--red);font-weight:700">52W L</td><td>Lowest price in the last 52 weeks. Support level \u2014 if LAST approaches this, may be a buying opportunity.</td></tr>';
+    html+='</tbody></table>';
+    html+='<div class="help-note">\u25b8 <b>Procurement signal:</b> When LAST &gt; MA-30 &gt; MA-90 and Y% is significantly positive, costs are accelerating. Consider locking in pricing or increasing safety stock.</div>';
+    html+='</div>';
+    html+='</div>';
+    html+='</div>';
+
+    // ── SECTION 3: Forecast ──
+    html+='<div class="help-section">';
+    html+='<div class="help-stitle">03 \u2014 THE 12-WEEK FORECAST (FC)</div>';
+    html+='<div class="help-cols">';
+    html+='<div class="help-note" style="font-size:10px">';
+    html+='The terminal uses <b>Holt-Winters double exponential smoothing</b> \u2014 an algorithm that separately tracks the <i>price level</i> and the <i>direction of trend</i>, then projects both forward 12 weeks.<br><br>';
+    html+='<span style="color:var(--cyn);font-weight:700">Dotted line</span> \u2014 forecast midpoint. The single most likely price at each future week.<br><br>';
+    html+='<span style="color:var(--cyn);font-weight:700">Shaded cone</span> \u2014 95% confidence interval. Under normal market conditions, prices should land within this band approximately 95% of the time.<br><br>';
+    html+='<span style="color:var(--dim)">The cone widens over time</span> because uncertainty compounds with each additional week projected.<br><br>';
+    html+='<b>+4W / +8W / +12W</b> values in the stats panel are the forecast midpoint prices at those future dates.';
+    html+='</div>';
+    html+='<div class="help-note" style="font-size:10px">';
+    html+='<b>How to use it in procurement:</b><br><br>';
+    html+='If +12W forecast is <span style="color:var(--grn)">significantly higher</span> than today\u2019s price and the cone is narrow (low volatility), this is a signal to <b>lock in current pricing</b> via forward contracts or purchase orders.<br><br>';
+    html+='If the cone is very wide, volatility is high and the forecast is less reliable \u2014 use wider pricing buffers in budgets.<br><br>';
+    html+='If +12W is <span style="color:var(--red)">below today\u2019s price</span>, the trend suggests waiting may yield better pricing \u2014 but weigh this against supply availability risk.<br><br>';
+    html+='<span class="help-warn">\u26a0 LIMITATION: This forecast is mathematical extrapolation only. It cannot predict supply shocks, disease outbreaks (HPAI), drought, trade policy changes, or other exogenous events. Use for directional guidance, not precision planning.</span>';
+    html+='</div>';
+    html+='</div>';
+    html+='</div>';
+
+    // ── SECTION 4: Views ──
+    html+='<div class="help-section">';
+    html+='<div class="help-stitle">04 \u2014 VIEWS &amp; NAVIGATION</div>';
+    html+='<div class="help-cols">';
+    html+='<div>';
+    html+='<div style="color:var(--grn);font-weight:700;font-size:10px;margin-bottom:5px">SINGLE VIEW</div>';
+    html+='<div class="help-note">Deep-dive on one commodity. Full price history chart with hover crosshair, volume bars below the chart, and a complete stats panel on the right showing all metrics plus forecast values. <b>Select a commodity</b> using the KPI cards at the top, or ↑↓ arrow keys.</div>';
+    html+='<div style="color:var(--cyn);font-weight:700;font-size:10px;margin:14px 0 5px">OVERLAY VIEW</div>';
+    html+='<div class="help-note">All 9 commodities on one chart, normalized to <b>% change from the start of the selected time period</b>. Every line starts at 0% on the left edge. Lines above zero are up from period start; below zero are down.<br><br>Use OVERLAY to answer: <i>"Which commodity is rising fastest this quarter?"</i> or <i>"Is chicken tracking with beef this year?"</i> Switch time ranges (1M/3M/6M etc.) to change the comparison baseline.<br><br>The right panel shows all 9 sorted by WoW % change \u2014 a quick leaderboard.</div>';
+    html+='</div>';
+    html+='<div>';
+    html+='<div style="color:var(--mag);font-weight:700;font-size:10px;margin-bottom:5px">MATRIX VIEW</div>';
+    html+='<div class="help-note">3\u00d73 grid showing all 9 commodities as mini sparkline charts simultaneously. Best for a quick visual scan of the full market. Click any cell to jump to that commodity in SINGLE view.</div>';
+    html+='<div style="color:var(--dim);font-weight:700;font-size:10px;margin:14px 0 5px">TIME RANGES</div>';
+    html+='<div class="help-note"><b>1M</b> = last 30 days \u00b7 <b>3M</b> = 90 days \u00b7 <b>6M</b> = 180 days \u00b7 <b>1Y</b> = 365 days \u00b7 <b>ALL</b> = full 2-year history. In OVERLAY, the % change baseline resets from the start of whichever range you select. Use <b>1M</b> to spot short-term moves; use <b>1Y</b> or <b>ALL</b> for budget season benchmarking.</div>';
+    html+='<div style="color:var(--amb);font-weight:700;font-size:10px;margin:14px 0 5px">KPI CARDS (top strip)</div>';
+    html+='<div class="help-note">The 9 cards across the top always show the latest price and key deltas regardless of which view you\u2019re in. The color bar highlights the currently selected commodity in SINGLE view. Cards are clickable.</div>';
+    html+='</div>';
+    html+='</div>';
+    html+='</div>';
+
+    // ── SECTION 5: Data & Reports ──
+    html+='<div class="help-section">';
+    html+='<div class="help-stitle">05 \u2014 DATA SOURCES &amp; USDA REPORT SCHEDULE</div>';
+    html+='<div class="help-cols">';
+    html+='<div>';
+    html+='<table class="help-grid"><thead><tr><th>SOURCE</th><th>WHAT IT PUBLISHES</th></tr></thead><tbody>';
+    html+='<tr><td style="font-weight:700;color:var(--txt)">USDA AMS</td><td>Agricultural Marketing Service. Publishes daily and weekly livestock, beef trim, poultry, and produce market price reports. <b>Primary data source for all 9 commodities.</b></td></tr>';
+    html+='<tr><td style="font-weight:700;color:var(--txt)">USDA ERS</td><td>Economic Research Service. Monthly food price outlook and annual CPI forecasts (e.g., "Beef +10.1% in 2026").</td></tr>';
+    html+='<tr><td style="font-weight:700;color:var(--txt)">NASS</td><td>National Agricultural Statistics Service. Cattle inventory counts, crop production surveys. Sets long-term context for supply fundamentals.</td></tr>';
+    html+='</tbody></table>';
+    html+='<div class="help-sub-label" style="margin-top:14px">REPORT STATUS INDICATORS</div>';
+    html+='<div class="help-note">';
+    html+='<span style="color:var(--grn)">&#9679; NEW</span> \u2014 Report released today; prices may have changed since last check<br>';
+    html+='<span style="color:var(--dim)">&#9675; SEEN</span> \u2014 You clicked \u2197 View PDF within the last hour<br>';
+    html+='<span style="color:var(--mut)">\u2014 PENDING</span> \u2014 Scheduled for today but not yet released<br><br>';
+    html+='Click \u2197 View PDF in the report badge to read the actual USDA PDF and mark the report as seen.';
+    html+='</div>';
+    html+='</div>';
+    html+='<div>';
+    html+='<table class="help-grid"><thead><tr><th>REPORT NAME</th><th>COVERS</th><th>DAY</th><th>TIME ET</th></tr></thead><tbody>';
+    html+='<tr><td>Daily Cattle &amp; Beef</td><td>BT50</td><td>Mon\u2013Fri</td><td>3:00 PM</td></tr>';
+    html+='<tr><td>Wkly Boneless Beef Trimmings</td><td>BT65, BT81, BT90</td><td>Friday</td><td>3:00 PM</td></tr>';
+    html+='<tr><td>Weekly National Chicken</td><td>CKBR</td><td>Friday</td><td>2:00 PM</td></tr>';
+    html+='<tr><td>Misc Poultry Report</td><td>CKLV, CKGZ</td><td>Friday</td><td>2:00 PM</td></tr>';
+    html+='<tr><td>National Potato &amp; Onion</td><td>PTRS</td><td>Mon\u2013Fri</td><td>5:00 PM</td></tr>';
+    html+='<tr><td>Terminal Vegetable Prices</td><td>GNSB</td><td>Mon\u2013Fri</td><td>12:00 PM</td></tr>';
+    html+='</tbody></table>';
+    html+='<div class="help-note" style="margin-top:10px"><span class="help-warn">\u26a0 IMPORTANT:</span> Prices in this terminal are generated from USDA-validated baseline data with simulated historical movement. They do not auto-update from a live feed. Always use the \u2197 View PDF links to verify current USDA market prices before making purchasing decisions.</div>';
+    html+='</div>';
+    html+='</div>';
+    html+='</div>';
+
+    // ── SECTION 6: Keyboard Shortcuts ──
+    html+='<div class="help-section">';
+    html+='<div class="help-stitle">06 \u2014 KEYBOARD SHORTCUTS</div>';
+    html+='<div class="help-kv">';
+    var ks=[["↑ / K","Previous commodity"],["↓ / J","Next commodity"],["S","Single view"],["O","Overlay view"],["M","Matrix view"],["F","Toggle forecast"],["?","Open / close guide"],["Esc","Close all panels"]];
+    ks.forEach(function(k){html+='<div class="help-key"><span class="hk">'+k[0]+'</span><span class="hv">'+k[1]+'</span></div>';});
+    html+='</div>';
+    html+='</div>';
+
+    html+='</div></div></div>'; // close help-body, help-box, help-overlay
+  }
+
+  document.getElementById("app").innerHTML=html;
+  requestAnimationFrame(function(){requestAnimationFrame(function(){
+    if(s.view==="MATRIX"){COMS.forEach(function(c,i){var cv=document.getElementById("mini"+i);if(!cv)return;sizeCanvas(cv);var d=s.data[i].slice(-days);if(s.fc)d=d.concat(s.forecasts[i]||[]);drawMini(cv,d,c.cl);});}
+    else if(s.view==="OVERLAY"){var ov=document.getElementById("overlayChart");if(ov){sizeCanvas(ov);var ovSeries=COMS.map(function(c,i){return(s.data[i]||[]).slice(-days);});var ovCols=COMS.map(function(c){return c.cl;});var ovLbls=COMS.map(function(c){return c.sy;});drawOverlay(ov,ovSeries,ovCols,ovLbls,{});ov.onmousemove=function(ev){var r=ov.getBoundingClientRect();drawOverlay(ov,ovSeries,ovCols,ovLbls,{hoverX:ev.clientX-r.left});};ov.onmouseleave=function(){drawOverlay(ov,ovSeries,ovCols,ovLbls,{});};}}
+    else{var cv=document.getElementById("mainChart");if(cv){sizeCanvas(cv);var series=(s.data[s.sel]||[]).slice(-days);drawChart(cv,series,COMS[s.sel].cl,{fcData:s.fc?s.forecasts[s.sel]:null});cv.onmousemove=function(ev){var r=cv.getBoundingClientRect();drawChart(cv,series,COMS[s.sel].cl,{fcData:s.fc?s.forecasts[s.sel]:null,hoverX:ev.clientX-r.left});};cv.onmouseleave=function(){drawChart(cv,series,COMS[s.sel].cl,{fcData:s.fc?s.forecasts[s.sel]:null});};}var vc=document.getElementById("volChart");if(vc){sizeCanvas(vc);drawVol(vc,(s.data[s.sel]||[]).slice(-days),COMS[s.sel].cl);}}
+  });});
+}
+
+// ═══ ACTIONS ═══
+window.pick=function(i){state.sel=i;state.view="SINGLE";state.showPanel=false;render();};
+window.setTR=function(r){state.tr=r;render();};
+window.setView=function(v){state.view=v;state.showPanel=false;render();};
+window.toggleFc=function(){state.fc=!state.fc;render();};
+window.togglePanel=function(){state.showPanel=!state.showPanel;render();};
+window.markChecked=function(ev){state.lastCheck=Date.now();};
+window.toggleHelp=function(){state.showHelp=!state.showHelp;render();};
+
+document.addEventListener("keydown",function(ev){
+  if(document.activeElement&&document.activeElement.tagName==="INPUT")return;
+  var i=state.sel;
+  if(ev.key==="ArrowDown"||ev.key==="j"){ev.preventDefault();state.sel=(i+1)%COMS.length;state.view="SINGLE";state.showPanel=false;render();}
+  if(ev.key==="ArrowUp"||ev.key==="k"){ev.preventDefault();state.sel=(i-1+COMS.length)%COMS.length;state.view="SINGLE";state.showPanel=false;render();}
+  if(ev.key==="f"){state.fc=!state.fc;render();}
+  if(ev.key==="o"){state.view="OVERLAY";render();}
+  if(ev.key==="m"){state.view="MATRIX";render();}
+  if(ev.key==="s"){state.view="SINGLE";render();}
+  if(ev.key==="Escape"){state.showPanel=false;state.showHelp=false;render();}
+  if(ev.key==="?"){state.showHelp=!state.showHelp;render();}
+});
+document.addEventListener("click",function(ev){if(state.showPanel&&!ev.target.closest(".rbtn")&&!ev.target.closest(".rpanel")){state.showPanel=false;render();}});
+setInterval(function(){var el=document.getElementById("clock");if(el)el.textContent=new Date().toLocaleTimeString("en-US",{hour12:false})+" CT";},1000);
+// Re-check report status every 5 min
+setInterval(function(){render();},300000);
+window.addEventListener("resize",function(){render();});
+render();
+</script>
+</body>
+</html>
