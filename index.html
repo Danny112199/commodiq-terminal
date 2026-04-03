@@ -273,31 +273,36 @@ function drawMini(cv,series,color,fcData){
   var ctx=cv.getContext("2d"),dpr=window.devicePixelRatio||1,w=cv.width/dpr,h=cv.height/dpr;
   ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);if(!series||series.length<2)return;
   var pr=series.map(function(d){return d.price;});
+  var fc4=fcData&&fcData.length?fcData.slice(0,4):null;
   var mn=Math.min.apply(null,pr),mx=Math.max.apply(null,pr);
-  if(fcData&&fcData.length){for(var i=0;i<fcData.length;i++){mn=Math.min(mn,fcData[i].lower);mx=Math.max(mx,fcData[i].upper);}}
+  if(fc4){for(var i=0;i<fc4.length;i++){mn=Math.min(mn,fc4[i].lower);mx=Math.max(mx,fc4[i].upper);}}
   var rng=mx-mn||1;mn-=rng*0.05;mx+=rng*0.05;rng=mx-mn;
-  var p=4,cw=w-2*p,ch=h-2*p,total=series.length+(fcData?fcData.length:0);
-  function xP(i,t){return p+i/Math.max(1,t-1)*cw;}function yP(v){return p+(1-(v-mn)/rng)*ch;}
+  var p=4,cw=w-2*p,ch=h-2*p;
+  var fs=pr.length,total=fs+(fc4?fc4.length:0);
+  function xP(i){return p+i/Math.max(1,total-1)*cw;}
+  function yP(v){return p+(1-(v-mn)/rng)*ch;}
   // Gradient fill — historical only
   var grad=ctx.createLinearGradient(0,p,0,h-p);grad.addColorStop(0,color+"40");grad.addColorStop(1,color+"05");
-  ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(xP(0,total),yP(pr[0]));
-  for(var i=1;i<pr.length;i++)ctx.lineTo(xP(i,total),yP(pr[i]));
-  ctx.lineTo(xP(pr.length-1,total),h-p);ctx.lineTo(xP(0,total),h-p);ctx.closePath();ctx.fill();
+  ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(xP(0),yP(pr[0]));
+  for(var i=1;i<pr.length;i++)ctx.lineTo(xP(i),yP(pr[i]));
+  ctx.lineTo(xP(fs-1),h-p);ctx.lineTo(xP(0),h-p);ctx.closePath();ctx.fill();
   // Historical price line
-  ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(xP(0,total),yP(pr[0]));
-  for(var i=1;i<pr.length;i++)ctx.lineTo(xP(i,total),yP(pr[i]));ctx.stroke();
-  // Forecast — cone + dotted midpoint line
-  if(fcData&&fcData.length){
-    var fs=series.length;
-    ctx.fillStyle="rgba(0,222,255,0.07)";ctx.beginPath();
-    ctx.moveTo(xP(fs,total),yP(fcData[0].upper));
-    for(var i=0;i<fcData.length;i++)ctx.lineTo(xP(fs+i,total),yP(fcData[i].upper));
-    for(var i=fcData.length-1;i>=0;i--)ctx.lineTo(xP(fs+i,total),yP(fcData[i].lower));
+  ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(xP(0),yP(pr[0]));
+  for(var i=1;i<pr.length;i++)ctx.lineTo(xP(i),yP(pr[i]));ctx.stroke();
+  // Forecast — cone + dotted midpoint line (4W only, unified coordinate system)
+  if(fc4){
+    ctx.fillStyle="rgba(0,222,255,0.18)";ctx.beginPath();
+    ctx.moveTo(xP(fs-1),yP(pr[pr.length-1]));
+    for(var i=0;i<fc4.length;i++)ctx.lineTo(xP(fs+i),yP(fc4[i].upper));
+    for(var i=fc4.length-1;i>=0;i--)ctx.lineTo(xP(fs+i),yP(fc4[i].lower));
     ctx.closePath();ctx.fill();
-    ctx.strokeStyle="#00deff";ctx.lineWidth=1;ctx.setLineDash([4,3]);ctx.beginPath();
-    ctx.moveTo(xP(fs-1,total),yP(pr[pr.length-1]));
-    for(var i=0;i<fcData.length;i++)ctx.lineTo(xP(fs+i,total),yP(fcData[i].price));
+    ctx.strokeStyle="#00deff";ctx.lineWidth=1.5;ctx.setLineDash([4,3]);ctx.beginPath();
+    ctx.moveTo(xP(fs-1),yP(pr[pr.length-1]));
+    for(var i=0;i<fc4.length;i++)ctx.lineTo(xP(fs+i),yP(fc4[i].price));
     ctx.stroke();ctx.setLineDash([]);
+    var ep=fc4[fc4.length-1];
+    ctx.fillStyle="#00deff";ctx.beginPath();
+    ctx.arc(xP(total-1),yP(ep.price),2.5,0,Math.PI*2);ctx.fill();
   }
 }
 
