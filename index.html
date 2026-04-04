@@ -191,7 +191,7 @@ function getReportStatus(){
   return{reports:results,newCount:newCount,next:nextStr};
 }
 
-var state={sel:0,tr:"6M",view:"SINGLE",fc:true,data:{},metrics:{},forecasts:{},lastCheck:0,showPanel:false,showHelp:false};
+var state={sel:0,tr:"6M",view:"SINGLE",fc:true,lbMode:false,data:{},metrics:{},forecasts:{},lastCheck:0,showPanel:false,showHelp:false};
 
 // ═══ DATA ═══
 function mkR(s){return function(){s=(s*16807)%2147483647;return(s-1)/2147483646;};}
@@ -236,6 +236,9 @@ function fmt(v,d){return v!=null&&!isNaN(v)?v.toFixed(d!=null?d:2):"\u2014";}
 function fP(v){return v!=null&&!isNaN(v)?(v>=0?"+":"")+v.toFixed(2)+"%":"\u2014";}
 function pcCl(v){return v>0.1?"#00e6b4":v<-0.1?"#ff4d6a":"#7889a8";}
 function tCl(t){return t==="\u2191"?"#00e6b4":t==="\u2193"?"#ff4d6a":"#7889a8";}
+function lbFactor(c){if(c.un==="$/cwt")return 0.01;if(c.un==="\u00a2/lb")return 0.01;if(c.un==="$/bu")return 1/30;return 1;}
+function lbSer(ser,f){if(f===1)return ser;return ser.map(function(d){return{date:d.date,price:Math.round(d.price*f*10000)/10000,vol:d.vol};});}
+function lbFc(fc,f){if(!fc||f===1)return fc;return fc.map(function(d){return{date:d.date,price:Math.round(d.price*f*10000)/10000,upper:Math.round(d.upper*f*10000)/10000,lower:Math.round(d.lower*f*10000)/10000};});}
 
 // ═══ CANVAS ═══
 function sizeCanvas(cv){var p=cv.parentElement,w=p.clientWidth,h=p.clientHeight,dpr=window.devicePixelRatio||1;cv.style.width=w+"px";cv.style.height=h+"px";cv.width=w*dpr;cv.height=h*dpr;}
@@ -255,19 +258,39 @@ function drawChart(canvas,series,color,opts){
   for(var i=0;i<5;i++){var gy=pad.t+(ch/4)*i;ctx.beginPath();ctx.moveTo(pad.l,gy);ctx.lineTo(w-pad.r,gy);ctx.stroke();ctx.fillStyle="#4e5f7c";ctx.font="9px 'IBM Plex Mono',monospace";ctx.textAlign="right";ctx.fillText(fmt(mx-(range/4)*i),pad.l-6,gy+3);}
   ctx.fillStyle="#4e5f7c";ctx.font="9px 'IBM Plex Mono',monospace";ctx.textAlign="center";
   var step=Math.max(1,Math.floor(total/6));for(var i=0;i<series.length;i+=step){var d=new Date(series[i].date);ctx.fillText(d.toLocaleDateString("en-US",{month:"short",day:"numeric"}),xP(i,total),h-pad.b+15);}
-  if(opts.fcData&&opts.fcData.length){var fs=series.length;ctx.fillStyle="rgba(0,222,255,0.07)";ctx.beginPath();ctx.moveTo(xP(fs,total),yP(opts.fcData[0].upper));for(var i=0;i<opts.fcData.length;i++)ctx.lineTo(xP(fs+i,total),yP(opts.fcData[i].upper));for(var i=opts.fcData.length-1;i>=0;i--)ctx.lineTo(xP(fs+i,total),yP(opts.fcData[i].lower));ctx.closePath();ctx.fill();ctx.strokeStyle="#00deff";ctx.lineWidth=1.5;ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(xP(fs-1,total),yP(series[series.length-1].price));for(var i=0;i<opts.fcData.length;i++)ctx.lineTo(xP(fs+i,total),yP(opts.fcData[i].price));ctx.stroke();ctx.setLineDash([]);}
+  if(opts.fcData&&opts.fcData.length){var fs=series.length;ctx.fillStyle="rgba(0,222,255,0.13)";ctx.beginPath();ctx.moveTo(xP(fs,total),yP(opts.fcData[0].upper));for(var i=0;i<opts.fcData.length;i++)ctx.lineTo(xP(fs+i,total),yP(opts.fcData[i].upper));for(var i=opts.fcData.length-1;i>=0;i--)ctx.lineTo(xP(fs+i,total),yP(opts.fcData[i].lower));ctx.closePath();ctx.fill();ctx.strokeStyle="#00deff";ctx.lineWidth=1.5;ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(xP(fs-1,total),yP(series[series.length-1].price));for(var i=0;i<opts.fcData.length;i++)ctx.lineTo(xP(fs+i,total),yP(opts.fcData[i].price));ctx.stroke();ctx.setLineDash([]);}
   var grad=ctx.createLinearGradient(0,pad.t,0,h-pad.b);grad.addColorStop(0,color+"33");grad.addColorStop(1,color+"03");ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(xP(0,total),yP(prices[0]));for(var i=1;i<prices.length;i++)ctx.lineTo(xP(i,total),yP(prices[i]));ctx.lineTo(xP(prices.length-1,total),h-pad.b);ctx.lineTo(xP(0,total),h-pad.b);ctx.closePath();ctx.fill();
   ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(xP(0,total),yP(prices[0]));for(var i=1;i<prices.length;i++)ctx.lineTo(xP(i,total),yP(prices[i]));ctx.stroke();
   if(opts.hoverX!=null){var idx=Math.round((opts.hoverX-pad.l)/cw*(total-1));if(idx>=0&&idx<series.length){var px=xP(idx,total),py=yP(series[idx].price);ctx.strokeStyle="#28406a";ctx.lineWidth=0.5;ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(px,pad.t);ctx.lineTo(px,h-pad.b);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=color;ctx.beginPath();ctx.arc(px,py,3.5,0,Math.PI*2);ctx.fill();ctx.fillStyle="#e8edf5";ctx.font="bold 10px 'IBM Plex Mono',monospace";ctx.textAlign="left";ctx.fillText(fmt(series[idx].price)+" | "+series[idx].date,px+8,py-6);}}
 }
-function drawVol(cv,series,color){
+function drawVol(cv,series,color,hoverX){
   var ctx=cv.getContext("2d"),dpr=window.devicePixelRatio||1,w=cv.width/dpr,h=cv.height/dpr;
   ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);if(!series||!series.length)return;
   var pad={t:18,r:10,b:4,l:40},cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
   var mx=0;for(var i=0;i<series.length;i++)if(series[i].vol>mx)mx=series[i].vol;
   if(!mx)return;
-  var bw=Math.max(1,cw/series.length-0.5);ctx.fillStyle=color+"40";
-  for(var i=0;i<series.length;i++){var bh=(series[i].vol/mx)*ch;ctx.fillRect(pad.l+i*(cw/series.length),h-pad.b-bh,bw,bh);}
+  var n=series.length,bw=Math.max(1,cw/n-0.5);
+  var hIdx=hoverX!=null?Math.min(n-1,Math.max(0,Math.round((hoverX-pad.l)/cw*(n-1)))):null;
+  for(var i=0;i<n;i++){
+    var bh=(series[i].vol/mx)*ch,bx=pad.l+i*(cw/n);
+    ctx.fillStyle=(i===hIdx)?color+"90":color+"40";
+    ctx.fillRect(bx,h-pad.b-bh,bw,bh);
+  }
+  if(hIdx!=null&&hIdx>=0&&hIdx<n){
+    var d=series[hIdx],bx=pad.l+hIdx*(cw/n)+bw/2;
+    // crosshair line
+    ctx.strokeStyle="#28406a";ctx.lineWidth=0.5;ctx.setLineDash([3,3]);
+    ctx.beginPath();ctx.moveTo(bx,pad.t);ctx.lineTo(bx,h-pad.b);ctx.stroke();ctx.setLineDash([]);
+    // tooltip
+    var volStr=d.vol.toLocaleString()+" lbs";
+    var dateStr=new Date(d.date).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+    var label=dateStr+" \u00b7 "+volStr;
+    ctx.font="bold 9px 'IBM Plex Mono',monospace";
+    var tw=ctx.measureText(label).width,tp=6,tx=bx+8,ty=pad.t+2;
+    if(tx+tw+tp*2>w-4)tx=bx-tw-tp*2-8;
+    ctx.fillStyle="rgba(12,18,32,0.92)";ctx.fillRect(tx-tp,ty,tw+tp*2,14);
+    ctx.fillStyle="#e8edf5";ctx.textAlign="left";ctx.fillText(label,tx,ty+10);
+  }
 }
 function drawMini(cv,series,color,fcData){
   var ctx=cv.getContext("2d"),dpr=window.devicePixelRatio||1,w=cv.width/dpr,h=cv.height/dpr;
@@ -382,10 +405,11 @@ function render(){
   // KPI strip
   html+='<div class="kpi-strip">';
   COMS.forEach(function(c,i){var mk=s.metrics[i];if(!mk)return;
+    var f=s.lbMode?lbFactor(c):1,un=s.lbMode?"$/lb":c.un;
     html+='<div class="kpi'+(s.sel===i&&s.view==="SINGLE"?' sel':'')+'" onclick="pick('+i+')" style="border-color:'+(s.sel===i&&s.view==="SINGLE"?c.cl:'var(--bdr)')+'">';
     if(s.sel===i&&s.view==="SINGLE")html+='<div class="bar" style="background:'+c.cl+'"></div>';
-    html+='<div class="kpi-top"><span class="kpi-sym" style="color:'+c.cl+'">'+c.sy+'</span><span class="kpi-unit">'+c.un+'</span></div>';
-    html+='<div class="kpi-price">'+fmt(mk.latest,2)+'</div>';
+    html+='<div class="kpi-top"><span class="kpi-sym" style="color:'+c.cl+'">'+c.sy+'</span><span class="kpi-unit">'+un+'</span></div>';
+    html+='<div class="kpi-price">'+fmt(mk.latest*f,2)+'</div>';
     html+='<div class="kpi-chg"><span style="color:'+pcCl(mk.daily)+'">'+fP(mk.daily)+'</span><span class="kpi-sep">\u2502</span><span style="color:'+pcCl(mk.wow)+'">W'+fP(mk.wow)+'</span><span class="kpi-trend" style="color:'+tCl(mk.trend)+'">'+mk.trend+'</span></div></div>';
   });html+='</div>';
 
@@ -393,13 +417,14 @@ function render(){
   html+='<div class="controls"><div class="ctrl-l"><div class="btn-grp">';
   Object.keys(TRS).forEach(function(r){html+='<button class="'+(s.tr===r?"on":"")+'" onclick="setTR(\''+r+'\')">'+r+'</button>';});
   html+='</div><div class="btn-grp">';["SINGLE","OVERLAY","MATRIX"].forEach(function(v){html+='<button class="'+(s.view===v?"on":"")+'" onclick="setView(\''+v+'\')">'+v+'</button>';});
-  html+='</div><button class="'+(s.fc?"on":"")+'" onclick="toggleFc()" style="'+(s.fc?"color:var(--cyn);border-color:rgba(0,222,255,.4);background:rgba(0,222,255,.12)":"")+'">FC '+(s.fc?"ON":"OFF")+'</button></div>';
-  html+='<div class="keys-hint">\u2191\u2193 nav \u00b7 F forecast \u00b7 O overlay \u00b7 M matrix</div></div>';
+  html+='</div><button class="'+(s.fc?"on":"")+'" onclick="toggleFc()" style="'+(s.fc?"color:var(--cyn);border-color:rgba(0,222,255,.4);background:rgba(0,222,255,.12)":"")+'">FC '+(s.fc?"ON":"OFF")+'</button>';
+  html+='<button class="'+(s.lbMode?"on":"")+'" onclick="toggleLb()" style="'+(s.lbMode?"color:var(--grn);border-color:rgba(0,230,180,.4);background:rgba(0,230,180,.12)":"")+'">$/LB '+(s.lbMode?"ON":"OFF")+'</button></div>';
+  html+='<div class="keys-hint">\u2191\u2193 nav \u00b7 F forecast \u00b7 O overlay \u00b7 M matrix \u00b7 L $/lb</div></div>';
 
   // Main
   if(s.view==="MATRIX"){
     html+='<div class="main"><div class="matrix">';
-    COMS.forEach(function(c,i){var mk=s.metrics[i],f4m=s.fc&&s.forecasts[i]&&s.forecasts[i][3];html+='<div onclick="pick('+i+')" style="cursor:pointer"><div class="mini-hdr" style="color:'+c.cl+';border-color:'+c.cl+'"><span>'+c.sy+'</span><span style="color:var(--txt)">'+(mk?fmt(mk.latest,2):"\u2014")+'</span><span style="color:'+pcCl(mk?mk.wow:0)+'">'+(mk?fP(mk.wow):"\u2014")+'</span>'+(f4m?'<span style="color:#00deff;font-size:8px;font-weight:600">\u2192'+fmt(f4m.price,0)+'</span>':'')+'</div><div class="mini-chart"><canvas id="mini'+i+'"></canvas></div></div>';});
+    COMS.forEach(function(c,i){var mk=s.metrics[i],f4m=s.fc&&s.forecasts[i]&&s.forecasts[i][3],mf=s.lbMode?lbFactor(c):1;html+='<div onclick="pick('+i+')" style="cursor:pointer"><div class="mini-hdr" style="color:'+c.cl+';border-color:'+c.cl+'"><span>'+c.sy+'</span><span style="color:var(--txt)">'+(mk?fmt(mk.latest*mf,2):"\u2014")+'</span><span style="color:'+pcCl(mk?mk.wow:0)+'">'+(mk?fP(mk.wow):"\u2014")+'</span>'+(f4m?'<span style="color:#00deff;font-size:8px;font-weight:600">\u2192'+fmt(f4m.price*mf,2)+'</span>':'')+'</div><div class="mini-chart"><canvas id="mini'+i+'"></canvas></div></div>';});
     html+='</div></div>';
   } else if(s.view==="OVERLAY"){
     html+='<div class="main"><div class="chart-col"><div class="chart-title"><span style="color:var(--dim)">OVERLAY \u2014 % CHANGE FROM PERIOD START \u00b7 '+s.tr+'</span></div>';
@@ -409,15 +434,16 @@ function render(){
     ovRows.forEach(function(x){html+='<div class="det-row"><span class="det-lbl" style="color:'+x.c.cl+'">'+x.c.sy+'</span><span class="det-val" style="color:'+pcCl(x.mk.wow)+'">'+fP(x.mk.wow)+'</span></div>';});
     html+='</div></div></div>';
   } else {
-    html+='<div class="main"><div class="chart-col"><div class="chart-title"><span style="color:'+cm.cl+'">'+cm.sy+' \u2014 '+cm.nm+'<span style="color:var(--dim);font-weight:400"> \u00b7 '+cm.un+'</span>'+(s.fc?'<span style="color:var(--cyn);font-weight:400;font-size:9.5px"> + 12W FORECAST</span>':'')+'</span></div>';
+    html+='<div class="main"><div class="chart-col"><div class="chart-title"><span style="color:'+cm.cl+'">'+cm.sy+' \u2014 '+cm.nm+'<span style="color:var(--dim);font-weight:400"> \u00b7 '+(s.lbMode?"$/lb":cm.un)+'</span>'+(s.fc?'<span style="color:var(--cyn);font-weight:400;font-size:9.5px"> + 12W FORECAST</span>':'')+'</span></div>';
     html+='<div class="chart-box"><canvas id="mainChart"></canvas></div>';
     if(s.view==="SINGLE")html+='<div class="vol-box"><div class="vol-label">VOLUME \u2014 '+cm.sy+'</div><canvas id="volChart"></canvas></div>';
     html+='</div>';
     if(m){
       var fc=s.forecasts[s.sel],f4=fc&&fc[3],f8=fc&&fc[7],f12=fc&&fc[fc.length-1];
-      html+='<div class="side"><div class="detail"><div class="det-sym" style="color:'+cm.cl+'">'+cm.sy+' \u2014 '+cm.nm+'</div><div class="det-src">'+cm.sr+'</div>';
-      var rows=[["LAST",fmt(m.latest,2),"var(--txt)"],["D%",fP(m.daily),pcCl(m.daily)],["W%",fP(m.wow),pcCl(m.wow)],["M%",fP(m.mom),pcCl(m.mom)],["Y%",fP(m.yoy),pcCl(m.yoy)],["\u2500\u2500","\u2500\u2500","var(--bdr)"],["MA-7",fmt(m.a7,2),"var(--dim)"],["MA-30",fmt(m.a30,2),"var(--dim)"],["MA-90",fmt(m.a90,2),"var(--dim)"],["VOL",fmt(m.vol,1)+"%","var(--amb)"],["\u2500\u2500","\u2500\u2500","var(--bdr)"],["52W H",fmt(m.h52,2),"var(--grn)"],["52W L",fmt(m.l52,2),"var(--red)"]];
-      if(f4){rows.push(["\u2500\u2500","\u2500\u2500","var(--bdr)"],["\u25b8 FCST","","var(--cyn)"],["  +4W",fmt(f4.price,2),pcCl(f4.price-m.latest)]);if(f8)rows.push(["  +8W",fmt(f8.price,2),pcCl(f8.price-m.latest)]);if(f12)rows.push(["  +12W",fmt(f12.price,2),pcCl(f12.price-m.latest)]);}
+      var lf=s.lbMode?lbFactor(cm):1,dp=s.lbMode?4:2;
+      html+='<div class="side"><div class="detail"><div class="det-sym" style="color:'+cm.cl+'">'+cm.sy+' \u2014 '+cm.nm+'</div><div class="det-src">'+cm.sr+(s.lbMode?' \u00b7 $/lb':'')+'</div>';
+      var rows=[["LAST",fmt(m.latest*lf,dp),"var(--txt)"],["D%",fP(m.daily),pcCl(m.daily)],["W%",fP(m.wow),pcCl(m.wow)],["M%",fP(m.mom),pcCl(m.mom)],["Y%",fP(m.yoy),pcCl(m.yoy)],["\u2500\u2500","\u2500\u2500","var(--bdr)"],["MA-7",fmt(m.a7*lf,dp),"var(--dim)"],["MA-30",fmt(m.a30*lf,dp),"var(--dim)"],["MA-90",fmt(m.a90*lf,dp),"var(--dim)"],["VOL",fmt(m.vol,1)+"%","var(--amb)"],["\u2500\u2500","\u2500\u2500","var(--bdr)"],["52W H",fmt(m.h52*lf,dp),"var(--grn)"],["52W L",fmt(m.l52*lf,dp),"var(--red)"]];
+      if(f4){rows.push(["\u2500\u2500","\u2500\u2500","var(--bdr)"],["\u25b8 FCST","","var(--cyn)"],["  +4W",fmt(f4.price*lf,dp),pcCl(f4.price-m.latest)]);if(f8)rows.push(["  +8W",fmt(f8.price*lf,dp),pcCl(f8.price-m.latest)]);if(f12)rows.push(["  +12W",fmt(f12.price*lf,dp),pcCl(f12.price-m.latest)]);}
       rows.forEach(function(r){html+='<div class="det-row"><span class="det-lbl">'+r[0]+'</span><span class="det-val" style="color:'+r[2]+'">'+r[1]+'</span></div>';});
       html+='</div></div>';
     }
@@ -425,9 +451,10 @@ function render(){
   }
 
   // Table
-  html+='<div class="tbl-wrap"><div class="tbl-box"><div class="tbl-title">MARKET OVERVIEW \u2014 9 COMMODITIES \u2014 USDA VALIDATED</div><table><thead><tr><th style="text-align:left">SYM</th><th>LAST</th><th>UNIT</th><th>D%</th><th>W%</th><th>M%</th><th>Y%</th><th>VOL</th><th>MA30</th><th>4W FC</th><th>TREND</th></tr></thead><tbody>';
+  html+='<div class="tbl-wrap"><div class="tbl-box"><div class="tbl-title">MARKET OVERVIEW \u2014 9 COMMODITIES \u2014 USDA VALIDATED'+(s.lbMode?' \u00b7 $/LB MODE':'')+' </div><table><thead><tr><th style="text-align:left">SYM</th><th>LAST</th><th>UNIT</th><th>D%</th><th>W%</th><th>M%</th><th>Y%</th><th>VOL</th><th>MA30</th><th>4W FC</th><th>TREND</th></tr></thead><tbody>';
   COMS.forEach(function(c,i){var mk=s.metrics[i],f4=s.forecasts[i]&&s.forecasts[i][3];if(!mk)return;
-    html+='<tr><td style="color:'+c.cl+'">'+c.sy+'</td><td style="color:var(--txt)">'+fmt(mk.latest,2)+'</td><td style="color:var(--mut);font-size:9px">'+c.un+'</td><td style="color:'+pcCl(mk.daily)+'">'+fP(mk.daily)+'</td><td style="color:'+pcCl(mk.wow)+'">'+fP(mk.wow)+'</td><td style="color:'+pcCl(mk.mom)+'">'+fP(mk.mom)+'</td><td style="color:'+pcCl(mk.yoy)+'">'+fP(mk.yoy)+'</td><td style="color:var(--amb)">'+fmt(mk.vol,1)+'%</td><td style="color:var(--dim)">'+fmt(mk.a30,2)+'</td><td style="color:'+(f4?pcCl(f4.price-mk.latest):"var(--dim)")+'">'+(f4?fmt(f4.price,2):"\u2014")+'</td><td style="font-size:13px;color:'+tCl(mk.trend)+'">'+mk.trend+'</td></tr>';
+    var tf=s.lbMode?lbFactor(c):1,un=s.lbMode?"$/lb":c.un,dp=s.lbMode?4:2;
+    html+='<tr><td style="color:'+c.cl+'">'+c.sy+'</td><td style="color:var(--txt)">'+fmt(mk.latest*tf,dp)+'</td><td style="color:var(--mut);font-size:9px">'+un+'</td><td style="color:'+pcCl(mk.daily)+'">'+fP(mk.daily)+'</td><td style="color:'+pcCl(mk.wow)+'">'+fP(mk.wow)+'</td><td style="color:'+pcCl(mk.mom)+'">'+fP(mk.mom)+'</td><td style="color:'+pcCl(mk.yoy)+'">'+fP(mk.yoy)+'</td><td style="color:var(--amb)">'+fmt(mk.vol,1)+'%</td><td style="color:var(--dim)">'+fmt(mk.a30*tf,dp)+'</td><td style="color:'+(f4?pcCl(f4.price-mk.latest):"var(--dim)")+'">'+(f4?fmt(f4.price*tf,dp):"\u2014")+'</td><td style="font-size:13px;color:'+tCl(mk.trend)+'">'+mk.trend+'</td></tr>';
   });html+='</tbody></table></div></div>';
 
   html+='<div class="footer"><span>DATA: USDA AMS Market News \u00b7 ERS Meat Price Spreads \u00b7 BLS CPI \u00b7 NASS</span><span>FORECAST: Holt-Winters 12W \u00b7 v5.0 \u00b7 \u00a9 2026 COMMODIQ</span></div>';
@@ -571,7 +598,7 @@ function render(){
     html+='<div class="help-section">';
     html+='<div class="help-stitle">06 \u2014 KEYBOARD SHORTCUTS</div>';
     html+='<div class="help-kv">';
-    var ks=[["↑ / K","Previous commodity"],["↓ / J","Next commodity"],["S","Single view"],["O","Overlay view"],["M","Matrix view"],["F","Toggle forecast"],["?","Open / close guide"],["Esc","Close all panels"]];
+    var ks=[["↑ / K","Previous commodity"],["↓ / J","Next commodity"],["S","Single view"],["O","Overlay view"],["M","Matrix view"],["F","Toggle forecast"],["L","Toggle $/lb mode"],["?","Open / close guide"],["Esc","Close all panels"]];
     ks.forEach(function(k){html+='<div class="help-key"><span class="hk">'+k[0]+'</span><span class="hv">'+k[1]+'</span></div>';});
     html+='</div>';
     html+='</div>';
@@ -581,9 +608,9 @@ function render(){
 
   document.getElementById("app").innerHTML=html;
   requestAnimationFrame(function(){requestAnimationFrame(function(){
-    if(s.view==="MATRIX"){COMS.forEach(function(c,i){var cv=document.getElementById("mini"+i);if(!cv)return;sizeCanvas(cv);var d=(s.data[i]||[]).slice(-days);var fc=s.fc?(s.forecasts[i]||null):null;drawMini(cv,d,c.cl,fc);});}
+    if(s.view==="MATRIX"){COMS.forEach(function(c,i){var cv=document.getElementById("mini"+i);if(!cv)return;sizeCanvas(cv);var mf=s.lbMode?lbFactor(c):1;var d=lbSer((s.data[i]||[]).slice(-days),mf);var fc=s.fc?lbFc(s.forecasts[i]||null,mf):null;drawMini(cv,d,c.cl,fc);});}
     else if(s.view==="OVERLAY"){var ov=document.getElementById("overlayChart");if(ov){sizeCanvas(ov);var ovSeries=COMS.map(function(c,i){return(s.data[i]||[]).slice(-days);});var ovCols=COMS.map(function(c){return c.cl;});var ovLbls=COMS.map(function(c){return c.sy;});drawOverlay(ov,ovSeries,ovCols,ovLbls,{});ov.onmousemove=function(ev){var r=ov.getBoundingClientRect();drawOverlay(ov,ovSeries,ovCols,ovLbls,{hoverX:ev.clientX-r.left});};ov.onmouseleave=function(){drawOverlay(ov,ovSeries,ovCols,ovLbls,{});};}}
-    else{var cv=document.getElementById("mainChart");if(cv){sizeCanvas(cv);var series=(s.data[s.sel]||[]).slice(-days);drawChart(cv,series,COMS[s.sel].cl,{fcData:s.fc?s.forecasts[s.sel]:null});cv.onmousemove=function(ev){var r=cv.getBoundingClientRect();drawChart(cv,series,COMS[s.sel].cl,{fcData:s.fc?s.forecasts[s.sel]:null,hoverX:ev.clientX-r.left});};cv.onmouseleave=function(){drawChart(cv,series,COMS[s.sel].cl,{fcData:s.fc?s.forecasts[s.sel]:null});};}var vc=document.getElementById("volChart");if(vc){sizeCanvas(vc);drawVol(vc,(s.data[s.sel]||[]).slice(-days),COMS[s.sel].cl);}}
+    else{var cv=document.getElementById("mainChart");if(cv){sizeCanvas(cv);var sf=s.lbMode?lbFactor(COMS[s.sel]):1;var series=lbSer((s.data[s.sel]||[]).slice(-days),sf);var fcScaled=s.fc?lbFc(s.forecasts[s.sel],sf):null;drawChart(cv,series,COMS[s.sel].cl,{fcData:fcScaled});cv.onmousemove=function(ev){var r=cv.getBoundingClientRect();drawChart(cv,series,COMS[s.sel].cl,{fcData:fcScaled,hoverX:ev.clientX-r.left});};cv.onmouseleave=function(){drawChart(cv,series,COMS[s.sel].cl,{fcData:fcScaled});};}var vc=document.getElementById("volChart");if(vc){sizeCanvas(vc);var vseries=(s.data[s.sel]||[]).slice(-days),vcl=COMS[s.sel].cl;drawVol(vc,vseries,vcl);vc.onmousemove=function(ev){var r=vc.getBoundingClientRect();drawVol(vc,vseries,vcl,ev.clientX-r.left);};vc.onmouseleave=function(){drawVol(vc,vseries,vcl);};}}
   });});
 }
 
@@ -595,6 +622,7 @@ window.toggleFc=function(){state.fc=!state.fc;render();};
 window.togglePanel=function(){state.showPanel=!state.showPanel;render();};
 window.markChecked=function(ev){state.lastCheck=Date.now();};
 window.toggleHelp=function(){state.showHelp=!state.showHelp;render();};
+window.toggleLb=function(){state.lbMode=!state.lbMode;render();};
 
 document.addEventListener("keydown",function(ev){
   if(document.activeElement&&document.activeElement.tagName==="INPUT")return;
@@ -605,6 +633,7 @@ document.addEventListener("keydown",function(ev){
   if(ev.key==="o"){state.view="OVERLAY";render();}
   if(ev.key==="m"){state.view="MATRIX";render();}
   if(ev.key==="s"){state.view="SINGLE";render();}
+  if(ev.key==="l"){state.lbMode=!state.lbMode;render();}
   if(ev.key==="Escape"){state.showPanel=false;state.showHelp=false;render();}
   if(ev.key==="?"){state.showHelp=!state.showHelp;render();}
 });
