@@ -59,9 +59,7 @@ button.on{background:rgba(0,230,180,.12);color:var(--grn);border-color:rgba(0,23
 .chart-col{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0}
 .chart-title{padding:0 3px;font-size:12.5px;font-weight:600;letter-spacing:.3px}
 .chart-box{background:var(--card);border:1px solid var(--bdr);border-radius:3px;position:relative;overflow:hidden;height:360px}
-.vol-box{background:var(--card);border:1px solid var(--bdr);border-radius:3px;height:88px;position:relative;overflow:hidden}
-.vol-label{position:absolute;top:7px;left:14px;font-size:9px;color:var(--dim);letter-spacing:1.5px;font-weight:600;z-index:1}
-.chart-box canvas,.vol-box canvas{display:block;position:absolute;top:0;left:0;width:100%;height:100%}
+.chart-box canvas{display:block;position:absolute;top:0;left:0;width:100%;height:100%}
 .mini-chart{overflow:hidden;position:relative;height:148px}.mini-chart canvas{display:block;position:absolute;top:0;left:0;width:100%;height:100%}
 .side{width:210px;display:flex;flex-direction:column;gap:8px}
 .detail{background:var(--card);border:1px solid var(--bdr);border-radius:3px;padding:12px 14px;font-size:11px;line-height:1.8}
@@ -134,15 +132,15 @@ var NEWS=[
 
 // ═══ 9 COMMODITIES (4 beef trims + 2 chicken + 1 offal gizzard + potato + green bean) ═══
 var COMS=[
-{k:"BT50",nm:"Beef Trim 50CL",un:"$/cwt",cl:"#ff4d6a",sy:"BT50",sr:"USDA AMS LM_XB403",hp:[175.75,168.5,3.8,8,2,42],rpt:"daily_cattle"},
-{k:"BT65",nm:"Beef Trim 65CL",un:"$/cwt",cl:"#ff6b81",sy:"BT65",sr:"USDA AMS LM_XB462",hp:[230.65,225.0,4.2,10,2,55],rpt:"weekly_trim"},
-{k:"BT81",nm:"Beef Trim 81CL",un:"$/cwt",cl:"#e84363",sy:"BT81",sr:"USDA AMS LM_XB462",hp:[405.09,352.0,5.5,12,2,71],rpt:"weekly_trim"},
-{k:"BT90",nm:"Beef Trim 90CL",un:"$/cwt",cl:"#d63051",sy:"BT90",sr:"USDA AMS LM_XB462",hp:[448.32,388.0,6.0,14,2,89],rpt:"weekly_trim"},
-{k:"CB",nm:"Chicken Breast B/S",un:"\u00a2/lb",cl:"#00e6b4",sy:"CKBR",sr:"USDA AMS PY_KA210",hp:[145.13,128,2.8,5,4,137],rpt:"weekly_chicken"},
-{k:"CL",nm:"Chicken Liver",un:"\u00a2/lb",cl:"#ffb020",sy:"CKLV",sr:"USDA AMS Misc Poultry",hp:[30.5,27.2,1.2,2,6,271],rpt:"weekly_poultry"},
-{k:"CG",nm:"Chicken Gizzard",un:"\u00a2/lb",cl:"#c97dff",sy:"CKGZ",sr:"USDA AMS Misc Poultry",hp:[45.8,41.5,1.0,1.5,5,389],rpt:"weekly_poultry"},
-{k:"PT",nm:"Russet Potatoes #1",un:"$/cwt",cl:"#3b9eff",sy:"PTRS",sr:"USDA AMS / NASS",hp:[10.00,10.45,0.35,1.2,0,503],rpt:"daily_potato"},
-{k:"GB",nm:"Snap Green Beans",un:"$/bu",cl:"#00deff",sy:"GNSB",sr:"USDA AMS Terminal",hp:[91.00,58,4.5,12,3,619],rpt:"daily_veggie"},
+{k:"BT50",nm:"Beef Trim 50CL",un:"$/cwt",cl:"#ff4d6a",sy:"BT50",sr:"USDA AMS ams_2462",hk:"BT50",rpt:"daily_cattle"},
+{k:"BT65",nm:"Beef Trim 65CL",un:"$/cwt",cl:"#ff6b81",sy:"BT65",sr:"USDA AMS ams_2462",hk:"BT65",rpt:"weekly_trim"},
+{k:"BT81",nm:"Beef Trim 81CL",un:"$/cwt",cl:"#e84363",sy:"BT81",sr:"USDA AMS ams_2462",hk:"BT81",rpt:"weekly_trim"},
+{k:"BT90",nm:"Beef Trim 90CL",un:"$/cwt",cl:"#d63051",sy:"BT90",sr:"USDA AMS ams_2462",hk:"BT90",rpt:"weekly_trim"},
+{k:"CB",nm:"Chicken Breast B/S",un:"\u00a2/lb",cl:"#00e6b4",sy:"CKBR",sr:"USDA AMS ams_3646",hk:"CB",rpt:"weekly_chicken"},
+{k:"CL",nm:"Chicken Liver",un:"\u00a2/lb",cl:"#ffb020",sy:"CKLV",sr:"USDA AMS ams_3645",hk:"CL",rpt:"weekly_poultry"},
+{k:"CG",nm:"Chicken Gizzard",un:"\u00a2/lb",cl:"#c97dff",sy:"CKGZ",sr:"USDA AMS ams_3645",hk:"CG",rpt:"weekly_poultry"},
+{k:"PT",nm:"Russet Potatoes #1",un:"$/cwt",cl:"#3b9eff",sy:"PTRS",sr:"USDA AMS fvdidnop",hk:"PT",rpt:"daily_potato"},
+{k:"GB",nm:"Snap Green Beans",un:"$/bu",cl:"#00deff",sy:"GNSB",sr:"USDA AMS NX_FV020",hk:"GB",rpt:"daily_veggie"},
 ];
 var KEYS=COMS.map(function(_,i){return i;});
 var TRS={"1M":30,"3M":90,"6M":180,"1Y":365,"ALL":730};
@@ -198,35 +196,422 @@ function getReportStatus(){
 
 var state={sel:0,tr:"6M",view:"SINGLE",fc:true,lbMode:false,data:{},metrics:{},forecasts:{},lastCheck:0,showPanel:false,showHelp:false};
 
-// ═══ DATA ═══
-function mkR(s){return function(){s=(s*16807)%2147483647;return(s-1)/2147483646;};}
-function buildSeries(hp){
-  var now=hp[0],ago=hp[1],vol=hp[2],sA=hp[3],sP=hp[4],seed=hp[5],days=730;
-  var r=mkR(seed),data=[],p=ago,dr=(now-ago)/days,td=new Date("2026-04-02");
-  for(var i=days;i>=0;i--){var d=new Date(td);d.setDate(d.getDate()-i);
-    var se=Math.sin(((d.getMonth()+sP)/12)*Math.PI*2)*sA;
-    p=Math.max(ago*0.55,Math.min(now*1.6,p+dr+(r()-0.5)*2*vol+se*0.018));
-    data.push({date:d.toISOString().split("T")[0],price:Math.round(p*100)/100,vol:Math.floor(r()*35000+8000)});}
-  data[data.length-1].price=now;return data;
+// ═══ ACTUAL USDA PRICE DATA — USDA AMS LM_XB460 (beef) & AMS_3649 (chicken), Jan 2020–Apr 2026 ═══
+// Beef: mpr.datamart.ams.usda.gov/ws/report/v1/xb/LM_XB460 — weekly Friday negotiated sales, $/cwt
+// Chicken: USDA AMS ams_3649 Monthly National Chicken Report PDFs — domestic fresh FOB wtd avg, ¢/lb
+// Potatoes: USDA AMS IF_FV130 Idaho Falls Shipping Point, $/cwt
+// Green Beans: USDA AMS NX_FV020 NY Terminal Market FL Handpicked, $/bu
+var HIST={
+  // ── BT50: LM_XB460 Chemical Lean Fresh 50%, $/cwt — end-of-month weekly Friday
+  BT50:[
+    {date:"2020-01-31",price:66.76,vol:null},
+    {date:"2020-02-28",price:57.33,vol:null},
+    {date:"2020-03-27",price:49.96,vol:null},
+    {date:"2020-04-17",price:77.64,vol:null},
+    {date:"2020-05-29",price:103.16,vol:null},
+    {date:"2020-06-26",price:67.47,vol:null},
+    {date:"2020-07-31",price:60.13,vol:null},
+    {date:"2020-08-28",price:45.04,vol:null},
+    {date:"2020-09-25",price:48.43,vol:null},
+    {date:"2020-10-30",price:35.41,vol:null},
+    {date:"2020-11-27",price:39.59,vol:null},
+    {date:"2020-12-31",price:34.68,vol:null},
+    {date:"2021-01-29",price:60.07,vol:null},
+    {date:"2021-02-26",price:50.45,vol:null},
+    {date:"2021-03-26",price:54.89,vol:null},
+    {date:"2021-04-30",price:85.85,vol:null},
+    {date:"2021-05-28",price:71.92,vol:null},
+    {date:"2021-06-25",price:106.11,vol:null},
+    {date:"2021-07-30",price:140.41,vol:null},
+    {date:"2021-08-27",price:148.10,vol:null},
+    {date:"2021-09-24",price:134.60,vol:null},
+    {date:"2021-10-29",price:87.77,vol:null},
+    {date:"2021-11-26",price:96.43,vol:null},
+    {date:"2021-12-23",price:92.21,vol:null},
+    {date:"2022-01-28",price:111.71,vol:null},
+    {date:"2022-02-25",price:99.49,vol:null},
+    {date:"2022-03-25",price:117.38,vol:null},
+    {date:"2022-04-29",price:116.63,vol:null},
+    {date:"2022-05-27",price:106.30,vol:null},
+    {date:"2022-06-24",price:115.82,vol:null},
+    {date:"2022-07-29",price:104.14,vol:null},
+    {date:"2022-08-26",price:104.40,vol:null},
+    {date:"2022-09-30",price:87.65,vol:null},
+    {date:"2022-10-28",price:70.06,vol:null},
+    {date:"2022-11-25",price:70.80,vol:null},
+    {date:"2022-12-23",price:96.64,vol:null},
+    {date:"2023-02-24",price:120.51,vol:null},
+    {date:"2023-03-31",price:144.08,vol:null},
+    {date:"2023-04-28",price:185.73,vol:null},
+    {date:"2023-05-26",price:184.16,vol:null},
+    {date:"2023-06-30",price:190.04,vol:null},
+    {date:"2023-07-28",price:134.80,vol:null},
+    {date:"2023-08-25",price:155.62,vol:null},
+    {date:"2023-09-29",price:124.04,vol:null},
+    {date:"2023-10-27",price:80.11,vol:null},
+    {date:"2023-11-24",price:55.19,vol:null},
+    {date:"2023-12-22",price:49.72,vol:null},
+    {date:"2024-01-26",price:92.26,vol:null},
+    {date:"2024-02-23",price:95.78,vol:null},
+    {date:"2024-03-29",price:102.84,vol:null},
+    {date:"2024-04-26",price:83.75,vol:null},
+    {date:"2024-05-03",price:78.58,vol:null},
+    {date:"2024-05-31",price:75.93,vol:null},
+    {date:"2024-06-28",price:100.63,vol:null},
+    {date:"2024-07-26",price:142.97,vol:null},
+    {date:"2024-08-16",price:172.29,vol:null},   // 2024 annual peak
+    {date:"2024-08-30",price:138.65,vol:null},
+    {date:"2024-09-27",price:80.31,vol:null},
+    {date:"2024-10-25",price:70.59,vol:null},
+    {date:"2024-11-29",price:77.01,vol:null},
+    {date:"2024-12-27",price:77.15,vol:null},
+    {date:"2025-01-31",price:115.31,vol:null},
+    {date:"2025-02-28",price:109.93,vol:null},
+    {date:"2025-03-28",price:118.18,vol:null},
+    {date:"2025-04-25",price:110.82,vol:null},
+    {date:"2025-05-02",price:111.74,vol:null},
+    {date:"2025-05-30",price:126.91,vol:null},
+    {date:"2025-06-27",price:236.03,vol:null},
+    {date:"2025-07-25",price:221.09,vol:null},
+    {date:"2025-08-29",price:169.71,vol:null},
+    {date:"2025-09-26",price:147.03,vol:null},
+    {date:"2025-10-31",price:160.57,vol:null},
+    {date:"2025-11-28",price:160.28,vol:null},
+    {date:"2025-12-26",price:124.60,vol:null},
+    {date:"2026-01-30",price:148.29,vol:null},
+    {date:"2026-02-27",price:152.78,vol:null},
+    {date:"2026-03-27",price:190.09,vol:null},
+    {date:"2026-04-03",price:175.75,vol:null},
+  ],
+  // ── BT65: LM_XB460 Chemical Lean Fresh 65%, $/cwt
+  BT65:[
+    {date:"2020-01-31",price:125.62,vol:null},
+    {date:"2020-02-28",price:97.43,vol:null},
+    {date:"2020-03-27",price:105.44,vol:null},
+    {date:"2020-04-17",price:122.38,vol:null},
+    {date:"2020-05-29",price:195.46,vol:null},   // COVID supply shock peak
+    {date:"2020-06-26",price:129.95,vol:null},
+    {date:"2020-07-31",price:104.71,vol:null},
+    {date:"2020-08-28",price:103.91,vol:null},
+    {date:"2020-09-25",price:92.90,vol:null},
+    {date:"2020-10-30",price:72.15,vol:null},
+    {date:"2020-11-27",price:83.18,vol:null},
+    {date:"2020-12-31",price:80.54,vol:null},
+    {date:"2021-01-29",price:99.82,vol:null},
+    {date:"2021-02-26",price:90.40,vol:null},
+    {date:"2021-03-26",price:84.76,vol:null},
+    {date:"2021-04-30",price:123.19,vol:null},
+    {date:"2021-05-28",price:132.67,vol:null},
+    {date:"2021-06-25",price:154.85,vol:null},
+    {date:"2021-07-30",price:172.27,vol:null},
+    {date:"2021-08-27",price:183.12,vol:null},
+    {date:"2021-09-24",price:188.56,vol:null},
+    {date:"2021-10-29",price:170.34,vol:null},
+    {date:"2021-11-26",price:169.90,vol:null},
+    {date:"2021-12-23",price:159.13,vol:null},
+    {date:"2022-01-28",price:180.27,vol:null},
+    {date:"2022-02-25",price:143.69,vol:null},
+    {date:"2022-03-25",price:142.55,vol:null},
+    {date:"2022-04-29",price:153.08,vol:null},
+    {date:"2022-05-27",price:152.14,vol:null},
+    {date:"2022-06-24",price:153.91,vol:null},
+    {date:"2022-08-26",price:126.54,vol:null},
+    {date:"2022-09-30",price:111.71,vol:null},
+    {date:"2022-10-28",price:111.01,vol:null},
+    {date:"2022-11-25",price:111.86,vol:null},
+    {date:"2022-12-23",price:111.00,vol:null},
+    {date:"2023-02-24",price:143.46,vol:null},
+    {date:"2023-03-31",price:166.59,vol:null},
+    {date:"2023-04-28",price:212.46,vol:null},
+    {date:"2023-05-26",price:222.75,vol:null},
+    {date:"2023-07-28",price:190.28,vol:null},
+    {date:"2023-08-25",price:175.59,vol:null},
+    {date:"2023-09-29",price:145.08,vol:null},
+    {date:"2023-10-27",price:126.17,vol:null},
+    {date:"2023-11-24",price:121.35,vol:null},
+    {date:"2023-12-22",price:98.23,vol:null},
+    {date:"2024-01-26",price:119.50,vol:null},
+    {date:"2024-02-23",price:135.03,vol:null},
+    {date:"2024-03-29",price:157.83,vol:null},
+    {date:"2024-04-26",price:161.18,vol:null},
+    {date:"2024-05-31",price:161.11,vol:null},
+    {date:"2024-06-28",price:183.05,vol:null},
+    {date:"2024-07-26",price:205.92,vol:null},
+    {date:"2024-08-09",price:214.61,vol:null},
+    {date:"2024-08-30",price:219.61,vol:null},
+    {date:"2024-09-27",price:210.96,vol:null},
+    {date:"2024-10-25",price:165.78,vol:null},
+    {date:"2024-11-29",price:171.25,vol:null},
+    {date:"2024-12-27",price:176.86,vol:null},
+    {date:"2025-01-31",price:195.00,vol:null},
+    {date:"2025-02-28",price:200.49,vol:null},
+    {date:"2025-03-28",price:197.90,vol:null},
+    {date:"2025-04-25",price:197.19,vol:null},
+    {date:"2025-05-30",price:212.66,vol:null},
+    {date:"2025-06-27",price:273.01,vol:null},
+    {date:"2025-07-25",price:245.33,vol:null},
+    {date:"2025-08-29",price:222.87,vol:null},
+    {date:"2025-09-26",price:171.81,vol:null},
+    {date:"2025-10-31",price:212.74,vol:null},
+    {date:"2025-11-28",price:215.18,vol:null},
+    {date:"2025-12-26",price:185.42,vol:null},
+    {date:"2026-01-30",price:196.95,vol:null},
+    {date:"2026-02-27",price:200.97,vol:null},
+    {date:"2026-03-27",price:230.04,vol:null},
+    {date:"2026-04-03",price:230.65,vol:null},
+  ],
+  // ── BT81: LM_XB460 Chemical Lean Fresh 81%, $/cwt — weeks with confirmed trades only
+  BT81:[
+    {date:"2020-01-31",price:174.00,vol:null},
+    {date:"2020-02-28",price:163.00,vol:null},
+    {date:"2020-03-27",price:183.37,vol:null},
+    {date:"2020-04-17",price:200.77,vol:null},
+    {date:"2020-05-29",price:255.00,vol:null},
+    {date:"2020-06-26",price:170.65,vol:null},
+    {date:"2020-07-31",price:166.66,vol:null},
+    {date:"2020-08-28",price:174.31,vol:null},
+    {date:"2020-09-25",price:156.73,vol:null},
+    {date:"2021-02-05",price:181.92,vol:null},
+    {date:"2021-05-28",price:218.01,vol:null},
+    {date:"2021-07-30",price:223.20,vol:null},
+    {date:"2021-11-12",price:234.52,vol:null},
+    {date:"2021-12-17",price:223.17,vol:null},
+    {date:"2022-05-27",price:225.90,vol:null},
+    {date:"2022-09-30",price:210.68,vol:null},
+    {date:"2022-10-28",price:204.13,vol:null},
+    {date:"2022-11-25",price:196.38,vol:null},
+    {date:"2022-12-23",price:198.98,vol:null},
+    {date:"2023-02-24",price:215.16,vol:null},
+    {date:"2023-03-31",price:228.37,vol:null},
+    {date:"2023-04-28",price:239.97,vol:null},
+    {date:"2023-05-26",price:241.64,vol:null},
+    {date:"2023-06-30",price:251.16,vol:null},
+    {date:"2023-08-25",price:254.83,vol:null},
+    {date:"2023-10-27",price:239.13,vol:null},
+    {date:"2023-12-22",price:209.61,vol:null},
+    {date:"2024-01-26",price:227.96,vol:null},
+    {date:"2024-02-23",price:245.77,vol:null},
+    {date:"2024-03-29",price:268.59,vol:null},
+    {date:"2024-04-26",price:275.87,vol:null},
+    {date:"2024-06-28",price:292.75,vol:null},
+    {date:"2024-07-26",price:305.76,vol:null},
+    {date:"2024-08-30",price:309.37,vol:null},
+    {date:"2024-09-27",price:292.72,vol:null},
+    {date:"2024-10-25",price:278.81,vol:null},
+    {date:"2024-11-29",price:250.85,vol:null},
+    {date:"2024-12-27",price:243.15,vol:null},
+    {date:"2025-01-31",price:278.99,vol:null},
+    {date:"2025-06-20",price:323.70,vol:null},
+    {date:"2025-07-11",price:357.08,vol:null},
+    {date:"2025-09-12",price:365.40,vol:null},
+    {date:"2025-10-31",price:310.68,vol:null},
+    {date:"2025-11-14",price:327.94,vol:null},
+    {date:"2025-12-19",price:323.19,vol:null},
+    {date:"2026-01-30",price:350.72,vol:null},
+    {date:"2026-03-27",price:408.00,vol:null},
+  ],
+  // ── BT90: LM_XB460 Chemical Lean Fresh 90%, $/cwt
+  BT90:[
+    {date:"2020-01-31",price:244.09,vol:null},
+    {date:"2020-02-28",price:228.29,vol:null},
+    {date:"2020-03-27",price:237.48,vol:null},
+    {date:"2020-04-17",price:244.38,vol:null},
+    {date:"2020-05-29",price:306.23,vol:null},   // COVID supply shock peak
+    {date:"2020-06-26",price:256.44,vol:null},
+    {date:"2020-07-31",price:235.89,vol:null},
+    {date:"2020-08-28",price:226.01,vol:null},
+    {date:"2020-09-25",price:214.45,vol:null},
+    {date:"2020-10-30",price:194.58,vol:null},
+    {date:"2020-11-27",price:201.55,vol:null},
+    {date:"2020-12-31",price:209.46,vol:null},
+    {date:"2021-01-29",price:220.35,vol:null},
+    {date:"2021-02-26",price:231.59,vol:null},
+    {date:"2021-03-26",price:231.20,vol:null},
+    {date:"2021-04-30",price:242.48,vol:null},
+    {date:"2021-05-28",price:257.21,vol:null},
+    {date:"2021-06-25",price:278.04,vol:null},
+    {date:"2021-07-30",price:276.05,vol:null},
+    {date:"2021-08-27",price:277.82,vol:null},
+    {date:"2021-09-24",price:277.61,vol:null},
+    {date:"2021-10-29",price:275.80,vol:null},
+    {date:"2021-11-26",price:276.48,vol:null},
+    {date:"2021-12-23",price:275.16,vol:null},
+    {date:"2022-01-28",price:277.41,vol:null},
+    {date:"2022-02-25",price:283.89,vol:null},
+    {date:"2022-03-25",price:283.57,vol:null},
+    {date:"2022-04-29",price:275.12,vol:null},
+    {date:"2022-05-27",price:275.26,vol:null},
+    {date:"2022-06-24",price:277.61,vol:null},
+    {date:"2022-07-29",price:268.90,vol:null},
+    {date:"2022-08-26",price:268.26,vol:null},
+    {date:"2022-09-30",price:262.63,vol:null},
+    {date:"2022-10-28",price:250.13,vol:null},
+    {date:"2022-11-25",price:240.45,vol:null},
+    {date:"2022-12-23",price:240.66,vol:null},
+    {date:"2023-01-27",price:248.48,vol:null},
+    {date:"2023-02-24",price:260.65,vol:null},
+    {date:"2023-03-31",price:273.76,vol:null},
+    {date:"2023-04-28",price:275.26,vol:null},
+    {date:"2023-05-26",price:278.13,vol:null},
+    {date:"2023-06-30",price:291.79,vol:null},
+    {date:"2023-07-28",price:294.43,vol:null},
+    {date:"2023-08-25",price:304.86,vol:null},
+    {date:"2023-09-29",price:303.81,vol:null},
+    {date:"2023-10-27",price:285.84,vol:null},
+    {date:"2023-11-24",price:272.40,vol:null},
+    {date:"2023-12-22",price:243.81,vol:null},
+    {date:"2024-01-26",price:286.40,vol:null},
+    {date:"2024-02-23",price:310.43,vol:null},
+    {date:"2024-03-08",price:317.36,vol:null},   // all-time record high (data to 1978)
+    {date:"2024-03-29",price:338.56,vol:null},
+    {date:"2024-04-26",price:346.37,vol:null},
+    {date:"2024-05-03",price:346.78,vol:null},
+    {date:"2024-05-31",price:354.00,vol:null},
+    {date:"2024-06-28",price:371.06,vol:null},
+    {date:"2024-07-26",price:375.20,vol:null},
+    {date:"2024-08-30",price:375.92,vol:null},
+    {date:"2024-09-27",price:355.66,vol:null},
+    {date:"2024-10-25",price:349.89,vol:null},
+    {date:"2024-11-29",price:326.60,vol:null},
+    {date:"2024-12-27",price:321.81,vol:null},
+    {date:"2025-01-31",price:364.61,vol:null},
+    {date:"2025-02-28",price:378.22,vol:null},
+    {date:"2025-03-28",price:381.96,vol:null},
+    {date:"2025-04-25",price:377.23,vol:null},
+    {date:"2025-05-02",price:374.77,vol:null},
+    {date:"2025-05-30",price:383.41,vol:null},
+    {date:"2025-06-27",price:403.00,vol:null},
+    {date:"2025-07-25",price:417.47,vol:null},
+    {date:"2025-08-29",price:431.66,vol:null},
+    {date:"2025-09-12",price:434.05,vol:null},
+    {date:"2025-09-26",price:432.20,vol:null},
+    {date:"2025-10-31",price:405.43,vol:null},
+    {date:"2025-11-28",price:402.24,vol:null},
+    {date:"2025-12-26",price:393.14,vol:null},
+    {date:"2026-01-30",price:410.52,vol:null},
+    {date:"2026-02-27",price:428.41,vol:null},
+    {date:"2026-03-27",price:441.61,vol:null},
+    {date:"2026-04-03",price:448.32,vol:null},
+  ],
+  // ── CB: USDA AMS ams_3649 Monthly National Chicken Report — Breast B/S wtd avg ¢/lb
+  CB:[
+    {date:"2023-01-31",price:100.68,vol:null},   // ams_3649 Jan 2023 (prev-month from Feb report)
+    {date:"2023-02-28",price:122.81,vol:null},   // ams_3649 Feb 2023 monthly avg
+    {date:"2023-05-31",price:137.00,vol:null},   // ams_3649 May 2023 (prev-month from Jul report)
+    {date:"2023-06-30",price:130.47,vol:null},   // ams_3649 Jun 2023 monthly avg
+    {date:"2023-09-29",price:165.20,vol:null},   // ams_3649 Sep 2023 (prev-month from Nov report)
+    {date:"2023-10-27",price:145.09,vol:null},   // ams_3649 Oct 2023 monthly avg
+    {date:"2024-12-27",price:147.81,vol:null},   // ams_3649 Dec 2024 (prev-month from Feb 2025 report)
+    {date:"2025-01-31",price:147.91,vol:null},   // ams_3649 Jan 2025 monthly avg
+    {date:"2025-02-28",price:172.59,vol:null},   // ams_3649 / USDA ERS LDP-M-369 Feb 2025
+    {date:"2026-01-31",price:128.17,vol:null},   // ams_3649 Jan 2026 monthly avg
+    {date:"2026-02-28",price:145.13,vol:null},   // ams_3649 Feb 2026 monthly avg
+    {date:"2026-03-27",price:152.90,vol:null},   // ams_3649 Mar 2026 monthly avg
+  ],
+  // ── CL: USDA AMS ams_3649 Monthly National Chicken Report — Livers wtd avg ¢/lb
+  CL:[
+    {date:"2022-09-30",price:63.85,vol:null},    // ams_3649 Sep 2022
+    {date:"2022-10-28",price:62.38,vol:null},    // ams_3649 Oct 2022
+    {date:"2023-01-31",price:60.73,vol:null},    // ams_3649 Jan 2023 (prev-month from Feb report)
+    {date:"2023-02-28",price:61.41,vol:null},    // ams_3649 Feb 2023 monthly avg
+    {date:"2023-05-31",price:62.27,vol:null},    // ams_3649 May 2023 (prev-month from Jul report)
+    {date:"2023-06-30",price:62.26,vol:null},    // ams_3649 Jun 2023 monthly avg
+    {date:"2023-09-29",price:62.14,vol:null},    // ams_3649 Sep 2023 (prev-month from Nov report)
+    {date:"2023-10-27",price:62.30,vol:null},    // ams_3649 Oct 2023 monthly avg
+    {date:"2024-12-27",price:65.01,vol:null},    // ams_3649 Dec 2024 (prev-month from Feb 2025 report)
+    {date:"2025-01-31",price:65.07,vol:null},    // ams_3649 Jan 2025 monthly avg
+    {date:"2026-02-28",price:72.28,vol:null},    // ams_3649 Feb 2026 (prev-month from Apr 2026 report)
+    {date:"2026-03-27",price:72.82,vol:null},    // ams_3649 Mar 2026 monthly avg
+  ],
+  // ── CG: USDA AMS ams_3649 Monthly National Chicken Report — Gizzards & Hearts wtd avg ¢/lb
+  CG:[
+    {date:"2022-09-30",price:60.99,vol:null},    // ams_3649 Sep 2022
+    {date:"2022-10-28",price:54.78,vol:null},    // ams_3649 Oct 2022
+    {date:"2023-01-31",price:64.77,vol:null},    // ams_3649 Jan 2023 (prev-month from Feb report)
+    {date:"2023-02-28",price:66.24,vol:null},    // ams_3649 Feb 2023 monthly avg
+    {date:"2023-05-31",price:73.56,vol:null},    // ams_3649 May 2023 (prev-month from Jul report)
+    {date:"2023-06-30",price:75.05,vol:null},    // ams_3649 Jun 2023 monthly avg
+    {date:"2023-09-29",price:74.67,vol:null},    // ams_3649 Sep 2023 (prev-month from Nov report)
+    {date:"2023-10-27",price:74.33,vol:null},    // ams_3649 Oct 2023 monthly avg
+    {date:"2024-12-27",price:80.15,vol:null},    // ams_3649 Dec 2024 (prev-month from Feb 2025 report)
+    {date:"2025-01-31",price:79.50,vol:null},    // ams_3649 Jan 2025 monthly avg
+    {date:"2026-02-28",price:89.98,vol:null},    // ams_3649 Feb 2026 (prev-month from Apr 2026 report)
+    {date:"2026-03-27",price:86.23,vol:null},    // ams_3649 Mar 2026 monthly avg
+  ],
+  // ── PT: USDA AMS IF_FV130 Idaho Falls Shipping Point — Russet Norkotah U.S. #1, $/cwt
+  PT:[
+    {date:"2024-01-24",price:15.31,vol:null},
+    {date:"2024-04-03",price:12.46,vol:null},
+    {date:"2024-05-29",price:10.90,vol:null},
+    {date:"2024-09-04",price:19.21,vol:null},    // new crop arrival
+    {date:"2024-09-18",price:18.74,vol:null},
+    {date:"2024-11-13",price:16.94,vol:null},
+    {date:"2024-12-18",price:16.91,vol:null},
+    {date:"2025-01-22",price:16.52,vol:null},
+    {date:"2025-03-05",price:16.25,vol:null},
+    {date:"2025-03-19",price:15.52,vol:null},
+    {date:"2025-04-16",price:14.51,vol:null},
+    {date:"2025-08-20",price:19.76,vol:null},    // new crop
+    {date:"2026-04-01",price:10.00,vol:null},
+  ],
+  // ── GB: USDA AMS NX_FV020 NY Terminal Market — FL Handpicked round green type, $/bu
+  GB:[
+    {date:"2024-01-03",price:62.50,vol:null},
+    {date:"2025-04-01",price:27.00,vol:null},
+    {date:"2025-04-24",price:53.00,vol:null},
+    {date:"2026-03-26",price:91.00,vol:null},
+  ],
+};
+function buildSeries(hk){return HIST[hk]||[];}
+function filterDays(data,days){
+  if(!data||!data.length)return data;
+  var last=new Date(data[data.length-1].date),cutoff=new Date(last);
+  cutoff.setDate(cutoff.getDate()-days);
+  return data.filter(function(d){return new Date(d.date)>=cutoff;});
 }
 function calcM(data){
-  if(!data||data.length<2)return null;
-  var L=data[data.length-1].price,P=data[data.length-2].price;
-  var w=data[Math.max(0,data.length-6)].price,m=data[Math.max(0,data.length-5)].price,y=data[Math.max(0,data.length-53)].price;
-  function avg(a){var s=0;for(var i=0;i<a.length;i++)s+=a[i];return s/a.length;}
-  var s7=[],s30=[],s90=[];
-  for(var i=Math.max(0,data.length-7);i<data.length;i++)s7.push(data[i].price);
-  for(var i=Math.max(0,data.length-30);i<data.length;i++)s30.push(data[i].price);
-  for(var i=Math.max(0,data.length-90);i<data.length;i++)s90.push(data[i].price);
-  var rets=[];for(var i=1;i<Math.min(30,data.length);i++)rets.push(Math.log(data[data.length-i].price/data[data.length-i-1].price));
-  var mr=avg(rets),va=0;for(var i=0;i<rets.length;i++)va+=(rets[i]-mr)*(rets[i]-mr);va/=rets.length;
-  var vol=Math.sqrt(va*52)*100;
-  var yr=data.slice(-365),h52=-1e9,l52=1e9;for(var i=0;i<yr.length;i++){if(yr[i].price>h52)h52=yr[i].price;if(yr[i].price<l52)l52=yr[i].price;}
-  var wow=((L-w)/w)*100,tr="\u2192";if(wow>0.8)tr="\u2191";else if(wow<-0.8)tr="\u2193";
-  return{latest:L,wow:wow,mom:((L-m)/m)*100,yoy:((L-y)/y)*100,daily:((L-P)/P)*100,trend:tr,a7:avg(s7),a30:avg(s30),a90:avg(s90),vol:vol,h52:h52,l52:l52};
+  if(!data||data.length<1)return null;
+  var last=data[data.length-1];if(!last)return null;
+  var latest=last.price,lastDate=new Date(last.date);
+  function closestBefore(daysAgo){
+    var target=new Date(lastDate);target.setDate(target.getDate()-daysAgo);
+    var best=null,bestDist=Infinity;
+    for(var i=0;i<data.length-1;i++){var dist=Math.abs(new Date(data[i].date).getTime()-target.getTime());if(dist<bestDist){bestDist=dist;best=data[i].price;}}
+    return best;
+  }
+  function maWindow(days){
+    var cut=new Date(lastDate);cut.setDate(cut.getDate()-days);
+    var pts=[];for(var i=0;i<data.length;i++){if(new Date(data[i].date)>=cut)pts.push(data[i].price);}
+    return pts.length?(pts.reduce(function(a,b){return a+b;})/pts.length):null;
+  }
+  var prev=data.length>=2?data[data.length-2].price:null;
+  var wk=data.length>=2?closestBefore(7):null;
+  var mo=data.length>=2?closestBefore(30):null;
+  var yr=data.length>=2?closestBefore(365):null;
+  var a7=maWindow(7)||latest,a30=maWindow(30)||latest,a90=maWindow(90)||latest;
+  var h52=-1e9,l52=1e9,cut52=new Date(lastDate);cut52.setDate(cut52.getDate()-365);
+  for(var i=0;i<data.length;i++){if(new Date(data[i].date)>=cut52){if(data[i].price>h52)h52=data[i].price;if(data[i].price<l52)l52=data[i].price;}}
+  if(h52===-1e9)h52=latest;if(l52===1e9)l52=latest;
+  var rets=[];for(var i=1;i<data.length;i++){if(data[i].price&&data[i-1].price)rets.push(Math.log(data[i].price/data[i-1].price));}
+  var volAnn=0;
+  if(rets.length>=1){
+    var mr=0;for(var i=0;i<rets.length;i++)mr+=rets[i];mr/=rets.length;
+    var va=0;for(var i=0;i<rets.length;i++)va+=(rets[i]-mr)*(rets[i]-mr);va/=Math.max(1,rets.length);
+    var totalDays=data.length>1?(new Date(data[data.length-1].date)-new Date(data[0].date))/86400000:365;
+    var ppy=data.length>1?(data.length-1)/(totalDays/365):52;
+    volAnn=Math.sqrt(va*ppy)*100;
+  }
+  var daily=prev!=null?((latest-prev)/prev)*100:null;
+  var wow=wk!=null?((latest-wk)/wk)*100:null;
+  var mom=mo!=null?((latest-mo)/mo)*100:null;
+  var yoy=yr!=null?((latest-yr)/yr)*100:null;
+  var tr="\u2192";
+  if(wow!=null){if(wow>0.8)tr="\u2191";else if(wow<-0.8)tr="\u2193";}
+  else if(daily!=null){if(daily>0.8)tr="\u2191";else if(daily<-0.8)tr="\u2193";}
+  return{latest:latest,wow:wow,mom:mom,yoy:yoy,daily:daily,trend:tr,a7:a7,a30:a30,a90:a90,vol:volAnn,h52:h52,l52:l52};
 }
 function doFc(data){
-  if(!data||data.length<8)return[];
+  if(!data||data.length<4)return[];
   var pr=[];for(var i=Math.max(0,data.length-52);i<data.length;i++)pr.push(data[i].price);
   var n=pr.length,al=0.3,be=0.1,lv=pr[0],tr=(pr[Math.min(3,n-1)]-pr[0])/Math.min(3,n-1);
   for(var i=1;i<n;i++){var pl=lv;lv=al*pr[i]+(1-al)*(lv+tr);tr=be*(lv-pl)+(1-be)*tr;}
@@ -272,12 +657,12 @@ function drawVol(cv,series,color,hoverX){
   var ctx=cv.getContext("2d"),dpr=window.devicePixelRatio||1,w=cv.width/dpr,h=cv.height/dpr;
   ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);if(!series||!series.length)return;
   var pad={t:18,r:10,b:4,l:40},cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
-  var mx=0;for(var i=0;i<series.length;i++)if(series[i].vol>mx)mx=series[i].vol;
+  var mx=0;for(var i=0;i<series.length;i++)if(series[i].vol!=null&&series[i].vol>mx)mx=series[i].vol;
   if(!mx)return;
   var n=series.length,bw=Math.max(1,cw/n-0.5);
   var hIdx=hoverX!=null?Math.min(n-1,Math.max(0,Math.round((hoverX-pad.l)/cw*(n-1)))):null;
   for(var i=0;i<n;i++){
-    var bh=(series[i].vol/mx)*ch,bx=pad.l+i*(cw/n);
+    var bh=series[i].vol!=null?(series[i].vol/mx)*ch:0,bx=pad.l+i*(cw/n);
     ctx.fillStyle=(i===hIdx)?color+"90":color+"40";
     ctx.fillRect(bx,h-pad.b-bh,bw,bh);
   }
@@ -372,7 +757,7 @@ function drawOverlay(canvas,seriesArr,colors,labels,opts){
 }
 
 // ═══ INIT ═══
-COMS.forEach(function(c,i){state.data[i]=buildSeries(c.hp);state.metrics[i]=calcM(state.data[i]);state.forecasts[i]=doFc(state.data[i]);});
+COMS.forEach(function(c,i){state.data[i]=buildSeries(c.hk);state.metrics[i]=calcM(state.data[i]);state.forecasts[i]=doFc(state.data[i]);});
 
 // ═══ RENDER ═══
 function render(){
@@ -439,15 +824,15 @@ function render(){
     ovRows.forEach(function(x){html+='<div class="det-row"><span class="det-lbl" style="color:'+x.c.cl+'">'+x.c.sy+'</span><span class="det-val" style="color:'+pcCl(x.mk.wow)+'">'+fP(x.mk.wow)+'</span></div>';});
     html+='</div></div></div>';
   } else {
-    html+='<div class="main"><div class="chart-col"><div class="chart-title"><span style="color:'+cm.cl+'">'+cm.sy+' \u2014 '+cm.nm+'<span style="color:var(--dim);font-weight:400"> \u00b7 '+(s.lbMode?"$/lb":cm.un)+'</span>'+(s.fc?'<span style="color:var(--cyn);font-weight:400;font-size:9.5px"> + 12W FORECAST</span>':'')+'</span></div>';
+    var ptCount=filterDays(s.data[s.sel]||[],days).length;
+    html+='<div class="main"><div class="chart-col"><div class="chart-title"><span style="color:'+cm.cl+'">'+cm.sy+' \u2014 '+cm.nm+'<span style="color:var(--dim);font-weight:400"> \u00b7 '+(s.lbMode?"$/lb":cm.un)+'</span>'+(s.fc?'<span style="color:var(--cyn);font-weight:400;font-size:9.5px"> + 12W FORECAST</span>':'')+'<span style="color:var(--mut);font-weight:400;font-size:9px"> \u00b7 '+ptCount+' USDA REPORT'+(ptCount!==1?'S':'')+'</span></span></div>';
     html+='<div class="chart-box"><canvas id="mainChart"></canvas></div>';
-    if(s.view==="SINGLE")html+='<div class="vol-box"><div class="vol-label">VOLUME \u2014 '+cm.sy+'</div><canvas id="volChart"></canvas></div>';
     html+='</div>';
     if(m){
       var fc=s.forecasts[s.sel],f4=fc&&fc[3],f8=fc&&fc[7],f12=fc&&fc[fc.length-1];
       var lf=s.lbMode?lbFactor(cm):1,dp=s.lbMode?4:2;
       html+='<div class="side"><div class="detail"><div class="det-sym" style="color:'+cm.cl+'">'+cm.sy+' \u2014 '+cm.nm+'</div><div class="det-src">'+cm.sr+(s.lbMode?' \u00b7 $/lb':'')+'</div>';
-      var rows=[["LAST",fmt(m.latest*lf,dp),"var(--txt)"],["D%",fP(m.daily),pcCl(m.daily)],["W%",fP(m.wow),pcCl(m.wow)],["M%",fP(m.mom),pcCl(m.mom)],["Y%",fP(m.yoy),pcCl(m.yoy)],["\u2500\u2500","\u2500\u2500","var(--bdr)"],["MA-7",fmt(m.a7*lf,dp),"var(--dim)"],["MA-30",fmt(m.a30*lf,dp),"var(--dim)"],["MA-90",fmt(m.a90*lf,dp),"var(--dim)"],["VOL",fmt(m.vol,1)+"%","var(--amb)"],["\u2500\u2500","\u2500\u2500","var(--bdr)"],["52W H",fmt(m.h52*lf,dp),"var(--grn)"],["52W L",fmt(m.l52*lf,dp),"var(--red)"]];
+      var rows=[["LAST",fmt(m.latest*lf,dp),"var(--txt)"],["D%",fP(m.daily),pcCl(m.daily)],["W%",fP(m.wow),pcCl(m.wow)],["M%",fP(m.mom),pcCl(m.mom)],["Y%",fP(m.yoy),pcCl(m.yoy)],["\u2500\u2500","\u2500\u2500","var(--bdr)"],["MA-7",fmt(m.a7*lf,dp),"var(--dim)"],["MA-30",fmt(m.a30*lf,dp),"var(--dim)"],["MA-90",fmt(m.a90*lf,dp),"var(--dim)"],["\u2500\u2500","\u2500\u2500","var(--bdr)"],["52W H",fmt(m.h52*lf,dp),"var(--grn)"],["52W L",fmt(m.l52*lf,dp),"var(--red)"]];
       if(f4){rows.push(["\u2500\u2500","\u2500\u2500","var(--bdr)"],["\u25b8 FCST","","var(--cyn)"],["  +4W",fmt(f4.price*lf,dp),pcCl(f4.price-m.latest)]);if(f8)rows.push(["  +8W",fmt(f8.price*lf,dp),pcCl(f8.price-m.latest)]);if(f12)rows.push(["  +12W",fmt(f12.price*lf,dp),pcCl(f12.price-m.latest)]);}
       rows.forEach(function(r){html+='<div class="det-row"><span class="det-lbl">'+r[0]+'</span><span class="det-val" style="color:'+r[2]+'">'+r[1]+'</span></div>';});
       html+='</div></div>';
@@ -456,13 +841,13 @@ function render(){
   }
 
   // Table
-  html+='<div class="tbl-wrap"><div class="tbl-box"><div class="tbl-title">MARKET OVERVIEW \u2014 9 COMMODITIES \u2014 USDA VALIDATED'+(s.lbMode?' \u00b7 $/LB MODE':'')+' </div><table><thead><tr><th style="text-align:left">SYM</th><th>LAST</th><th>UNIT</th><th>D%</th><th>W%</th><th>M%</th><th>Y%</th><th>VOL</th><th>MA30</th><th>4W FC</th><th>TREND</th></tr></thead><tbody>';
+  html+='<div class="tbl-wrap"><div class="tbl-box"><div class="tbl-title">MARKET OVERVIEW \u2014 9 COMMODITIES \u2014 USDA VALIDATED'+(s.lbMode?' \u00b7 $/LB MODE':'')+' </div><table><thead><tr><th style="text-align:left">SYM</th><th>LAST</th><th>UNIT</th><th>D%</th><th>W%</th><th>M%</th><th>Y%</th><th>MA30</th><th>4W FC</th><th>TREND</th></tr></thead><tbody>';
   COMS.forEach(function(c,i){var mk=s.metrics[i],f4=s.forecasts[i]&&s.forecasts[i][3];if(!mk)return;
     var tf=s.lbMode?lbFactor(c):1,un=s.lbMode?"$/lb":c.un,dp=s.lbMode?4:2;
-    html+='<tr><td style="color:'+c.cl+'">'+c.sy+'</td><td style="color:var(--txt)">'+fmt(mk.latest*tf,dp)+'</td><td style="color:var(--mut);font-size:9px">'+un+'</td><td style="color:'+pcCl(mk.daily)+'">'+fP(mk.daily)+'</td><td style="color:'+pcCl(mk.wow)+'">'+fP(mk.wow)+'</td><td style="color:'+pcCl(mk.mom)+'">'+fP(mk.mom)+'</td><td style="color:'+pcCl(mk.yoy)+'">'+fP(mk.yoy)+'</td><td style="color:var(--amb)">'+fmt(mk.vol,1)+'%</td><td style="color:var(--dim)">'+fmt(mk.a30*tf,dp)+'</td><td style="color:'+(f4?pcCl(f4.price-mk.latest):"var(--dim)")+'">'+(f4?fmt(f4.price*tf,dp):"\u2014")+'</td><td style="font-size:13px;color:'+tCl(mk.trend)+'">'+mk.trend+'</td></tr>';
+    html+='<tr><td style="color:'+c.cl+'">'+c.sy+'</td><td style="color:var(--txt)">'+fmt(mk.latest*tf,dp)+'</td><td style="color:var(--mut);font-size:9px">'+un+'</td><td style="color:'+pcCl(mk.daily)+'">'+fP(mk.daily)+'</td><td style="color:'+pcCl(mk.wow)+'">'+fP(mk.wow)+'</td><td style="color:'+pcCl(mk.mom)+'">'+fP(mk.mom)+'</td><td style="color:'+pcCl(mk.yoy)+'">'+fP(mk.yoy)+'</td><td style="color:var(--dim)">'+fmt(mk.a30*tf,dp)+'</td><td style="color:'+(f4?pcCl(f4.price-mk.latest):"var(--dim)")+'">'+(f4?fmt(f4.price*tf,dp):"\u2014")+'</td><td style="font-size:13px;color:'+tCl(mk.trend)+'">'+mk.trend+'</td></tr>';
   });html+='</tbody></table></div></div>';
 
-  html+='<div class="footer"><span>DATA: USDA AMS Market News \u00b7 ERS Meat Price Spreads \u00b7 BLS CPI \u00b7 NASS</span><span style="color:var(--grn);font-weight:600;letter-spacing:1px">MAEV FINANCE</span><span>FORECAST: Holt-Winters 12W \u00b7 v5.0 \u00b7 \u00a9 2026</span></div>';
+  html+='<div class="footer"><span>DATA: USDA AMS published reports only \u00b7 Actual prices, no synthetic values \u00b7 History limited to available report dates</span><span style="color:var(--grn);font-weight:600;letter-spacing:1px">MAEV FINANCE</span><span>FORECAST: Holt-Winters \u00b7 v5.1 \u00b7 \u00a9 2026</span></div>';
 
   // ═══ HELP MODAL ═══
   if(s.showHelp){
@@ -594,7 +979,7 @@ function render(){
     html+='<tr><td>National Potato &amp; Onion</td><td>PTRS</td><td>Mon\u2013Fri</td><td>5:00 PM</td></tr>';
     html+='<tr><td>Terminal Vegetable Prices</td><td>GNSB</td><td>Mon\u2013Fri</td><td>12:00 PM</td></tr>';
     html+='</tbody></table>';
-    html+='<div class="help-note" style="margin-top:10px"><span class="help-warn">\u26a0 IMPORTANT:</span> Prices in this terminal are generated from USDA-validated baseline data with simulated historical movement. They do not auto-update from a live feed. Always use the \u2197 View PDF links to verify current USDA market prices before making purchasing decisions.</div>';
+    html+='<div class="help-note" style="margin-top:10px"><span class="help-warn">\u26a0 IMPORTANT:</span> All prices shown are actual USDA published report values only \u2014 no synthetic or interpolated data. Historical charts show only available report dates; gaps between dates are not filled. The terminal does not auto-update; prices reflect the most recent manual refresh. Always use the \u2197 View PDF links to verify current USDA market prices before making purchasing decisions.</div>';
     html+='</div>';
     html+='</div>';
     html+='</div>';
@@ -613,9 +998,9 @@ function render(){
 
   document.getElementById("app").innerHTML=html;
   requestAnimationFrame(function(){requestAnimationFrame(function(){
-    if(s.view==="MATRIX"){COMS.forEach(function(c,i){var cv=document.getElementById("mini"+i);if(!cv)return;sizeCanvas(cv);var mf=s.lbMode?lbFactor(c):1;var d=lbSer((s.data[i]||[]).slice(-days),mf);var fc=s.fc?lbFc(s.forecasts[i]||null,mf):null;drawMini(cv,d,c.cl,fc);});}
-    else if(s.view==="OVERLAY"){var ov=document.getElementById("overlayChart");if(ov){sizeCanvas(ov);var ovSeries=COMS.map(function(c,i){return(s.data[i]||[]).slice(-days);});var ovCols=COMS.map(function(c){return c.cl;});var ovLbls=COMS.map(function(c){return c.sy;});drawOverlay(ov,ovSeries,ovCols,ovLbls,{});ov.onmousemove=function(ev){var r=ov.getBoundingClientRect();drawOverlay(ov,ovSeries,ovCols,ovLbls,{hoverX:ev.clientX-r.left});};ov.onmouseleave=function(){drawOverlay(ov,ovSeries,ovCols,ovLbls,{});};}}
-    else{var cv=document.getElementById("mainChart");if(cv){sizeCanvas(cv);var sf=s.lbMode?lbFactor(COMS[s.sel]):1;var series=lbSer((s.data[s.sel]||[]).slice(-days),sf);var fcScaled=s.fc?lbFc(s.forecasts[s.sel],sf):null;drawChart(cv,series,COMS[s.sel].cl,{fcData:fcScaled});cv.onmousemove=function(ev){var r=cv.getBoundingClientRect();drawChart(cv,series,COMS[s.sel].cl,{fcData:fcScaled,hoverX:ev.clientX-r.left});};cv.onmouseleave=function(){drawChart(cv,series,COMS[s.sel].cl,{fcData:fcScaled});};}var vc=document.getElementById("volChart");if(vc){sizeCanvas(vc);var vseries=(s.data[s.sel]||[]).slice(-days),vcl=COMS[s.sel].cl;drawVol(vc,vseries,vcl);vc.onmousemove=function(ev){var r=vc.getBoundingClientRect();drawVol(vc,vseries,vcl,ev.clientX-r.left);};vc.onmouseleave=function(){drawVol(vc,vseries,vcl);};}}
+    if(s.view==="MATRIX"){COMS.forEach(function(c,i){var cv=document.getElementById("mini"+i);if(!cv)return;sizeCanvas(cv);var mf=s.lbMode?lbFactor(c):1;var d=lbSer(filterDays(s.data[i]||[],days),mf);var fc=s.fc?lbFc(s.forecasts[i]||null,mf):null;drawMini(cv,d,c.cl,fc);});}
+    else if(s.view==="OVERLAY"){var ov=document.getElementById("overlayChart");if(ov){sizeCanvas(ov);var ovSeries=COMS.map(function(c,i){return filterDays(s.data[i]||[],days);});var ovCols=COMS.map(function(c){return c.cl;});var ovLbls=COMS.map(function(c){return c.sy;});drawOverlay(ov,ovSeries,ovCols,ovLbls,{});ov.onmousemove=function(ev){var r=ov.getBoundingClientRect();drawOverlay(ov,ovSeries,ovCols,ovLbls,{hoverX:ev.clientX-r.left});};ov.onmouseleave=function(){drawOverlay(ov,ovSeries,ovCols,ovLbls,{});};}}
+    else{var cv=document.getElementById("mainChart");if(cv){sizeCanvas(cv);var sf=s.lbMode?lbFactor(COMS[s.sel]):1;var series=lbSer(filterDays(s.data[s.sel]||[],days),sf);var fcScaled=s.fc?lbFc(s.forecasts[s.sel],sf):null;drawChart(cv,series,COMS[s.sel].cl,{fcData:fcScaled});cv.onmousemove=function(ev){var r=cv.getBoundingClientRect();drawChart(cv,series,COMS[s.sel].cl,{fcData:fcScaled,hoverX:ev.clientX-r.left});};cv.onmouseleave=function(){drawChart(cv,series,COMS[s.sel].cl,{fcData:fcScaled});};}}
   });});
 }
 
