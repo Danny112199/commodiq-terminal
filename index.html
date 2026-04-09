@@ -138,14 +138,14 @@ var NEWS=[
 {t:"50CL Weekly Avg $175.75/cwt on 76 Trades, 1.9M lbs \u2014 Broad Demand Week of Apr 3",d:"Apr 3",s:"USDA AMS",u:"https://www.ams.usda.gov/mnreports/ams_2462.pdf"},
 {t:"81CL Trim: Zero Trades Second Consecutive Week \u2014 Market Inactive Apr 3",d:"Apr 3",s:"USDA AMS",u:"https://www.ams.usda.gov/mnreports/ams_2462.pdf"},
 {t:"Chicken Breast B/S 152.90\u00a2/lb Mar 2026 Monthly Avg (ams_3649); Up +5.4% from Feb 145.13\u00a2",d:"Apr 3",s:"USDA AMS",u:"https://www.ams.usda.gov/mnreports/ams_3649.pdf"},
+{t:"FL Snap Green Beans Plunge to $40/bu Handpicked \u2014 Down 56% Since Mar 26 as Spring Crop Peaks",d:"Apr 8",s:"USDA AMS",u:"https://www.ams.usda.gov/mnreports/nx_fv020.pdf"},
+{t:"Russet Norkotah $12.00/cwt at Idaho Falls (Apr 8) \u2014 Up +20% MoM; Storage Supply Tightening",d:"Apr 8",s:"USDA AMS",u:"https://www.ams.usda.gov/mnreports/fvdidnop.pdf"},
 {t:"Russet Norkotah Firms to $10.00/cwt; Storage Premiums Building into Spring",d:"Apr 1",s:"USDA AMS",u:"https://www.ams.usda.gov/mnreports/fvdidnop.pdf"},
 {t:"Cattle Futures Surge $3+ on Strong Beef Cutout; Choice at $395.49",d:"Apr 1",s:"CME/USDA",u:"https://www.ams.usda.gov/mnreports/lsddcbs.pdf"},
 {t:"U.S. Cattle Inventory Hits 75-Year Low at 86.2M Head",d:"Mar 28",s:"USDA NASS",u:"https://www.fb.org/market-intel/smaller-cattle-herd-creates-market-volatility"},
 {t:"Weekly Cattle Slaughter 520K, Down 89K YoY",d:"Mar 28",s:"USDA AMS",u:"https://www.ams.usda.gov/mnreports/lswnfss.pdf"},
 {t:"Green Beans $90-92/bu FL Handpicked at NY Terminal",d:"Mar 26",s:"USDA AMS",u:"https://www.ams.usda.gov/mnreports/nx_fv020.pdf"},
 {t:"USDA ERS: Beef & Veal Prices to Rise 10.1% in 2026",d:"Mar 25",s:"USDA ERS",u:"https://www.ers.usda.gov/topics/animal-products/cattle-beef/market-outlook"},
-{t:"Fresh Vegetable Prices +2.8% MoM, +5.4% YoY in Feb",d:"Mar 25",s:"USDA ERS",u:"https://www.ers.usda.gov/data-products/food-price-outlook/summary-findings"},
-{t:"USDA: All Food +3.6% in 2026; Beef +10.1%",d:"Mar 25",s:"USDA ERS",u:"https://www.ers.usda.gov/data-products/food-price-outlook/summary-findings"},
 ];
 
 // ═══ 9 COMMODITIES (4 beef trims + 2 chicken + 1 offal gizzard + potato + green bean) ═══
@@ -596,6 +596,7 @@ var HIST={
     {date:"2025-04-16",price:14.51,vol:null},
     {date:"2025-08-20",price:19.76,vol:null},    // new crop
     {date:"2026-04-01",price:10.00,vol:null},
+    {date:"2026-04-08",price:12.00,vol:null},   // fvdidnop Apr 8; Upper Valley ID, Russet Norkotah U.S.#1 50-lb cartons mostly $6.00 = $12.00/cwt
   ],
   // ── GB: USDA AMS NX_FV020 NY Terminal Market — FL Handpicked round green type, $/bu
   GB:[
@@ -603,6 +604,7 @@ var HIST={
     {date:"2025-04-01",price:27.00,vol:null},
     {date:"2025-04-24",price:53.00,vol:null},
     {date:"2026-03-26",price:91.00,vol:null},
+    {date:"2026-04-08",price:40.00,vol:null},   // NX_FV020 Apr 8; FL Handpicked 1 1/9-bu crate $40.00; Market Lower
   ],
 };
 function buildSeries(hk){return HIST[hk]||[];}
